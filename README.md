@@ -283,3 +283,9 @@ Current Status:
 Next Milestone:
 
 **Phase 1 – Network Session Manager**
+
+## Future Vision
+
+Future versions of ConfigBridge may expand support for additional network operating systems, enhanced deployment workflows, broader configuration coverage, and more advanced automation capabilities.
+
+The long-term objective is to provide a scalable platform capable of supporting increasingly complex multi-vendor environments while maintaining a vendor-neutral configuration transpilation architecture.
