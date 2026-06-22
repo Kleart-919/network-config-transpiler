@@ -12,7 +12,12 @@ Modern enterprise networks frequently contain equipment from multiple vendors su
 
 Although these platforms implement similar networking concepts, they expose them through different command-line interfaces, configuration models, and deployment workflows.
 
-ConfigBridge aims to reduce the complexity of multi-vendor network management by translating vendor-specific configurations through a shared vendor-neutral representation.
+ConfigBridge aims to reduce the operational complexity of multi-vendor network management by translating vendor-specific configurations through a shared vendor-neutral representation.
+
+Organizations operating heterogeneous network environments often face challenges associated with vendor-specific expertise, training requirements, migration complexity, and platform selection. Existing solutions may involve significant investment in commercial management platforms, specialist personnel, or extensive staff training across multiple vendor ecosystems.
+
+ConfigBridge does not seek to replace vendor expertise or existing enterprise management platforms. Instead, it aims to improve accessibility, reduce migration friction, and lower the operational overhead associated with multi-vendor environments. By providing a unified access platform and a configuration transpilation engine, the project seeks to assist engineers in understanding, translating, comparing, and deploying configurations across different network operating systems while preserving vendor-specific behaviour where necessary.
+
 
 Instead of relying on one-to-one command mapping, ConfigBridge uses a transpiler-inspired architecture:
 
