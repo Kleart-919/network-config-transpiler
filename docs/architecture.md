@@ -19,6 +19,7 @@ Renderer
 Risk Engine
         ↓
 Deployment Manager
+
 Diagram 2
 
 Translation Pipeline
@@ -34,6 +35,7 @@ Intent Model
 Juniper Renderer
      ↓
 Juniper Config
+
 Diagram 3
 
 Vendor Plugin Architecture
@@ -45,6 +47,7 @@ Vendor Plugin
 ├── Validator
 ├── Deployment Rules
 └── Interface Mapper
+
 Diagram 4
 
 Deployment Workflow
