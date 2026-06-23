@@ -32,8 +32,8 @@ class ConfigBridgeWindow(QMainWindow):
         self.setWindowTitle("ConfigBridge")
         self.setMinimumSize(900, 600)
 
-        self.vendor_dropdown = QComboBox()
-        self.vendor_dropdown.addItems(
+        self.cli_mode_dropdown = QComboBox()
+        self.cli_mode_dropdown.addItems(
             [
                 "Cisco IOS",
                 "Juniper Junos",
@@ -66,8 +66,8 @@ class ConfigBridgeWindow(QMainWindow):
         main_layout = QVBoxLayout()
 
         connection_layout = QHBoxLayout()
-        connection_layout.addWidget(QLabel("Vendor:"))
-        connection_layout.addWidget(self.vendor_dropdown)
+        connection_layout.addWidget(QLabel("Cli mode:"))
+        connection_layout.addWidget(self.cli_mode_dropdown)
         connection_layout.addWidget(QLabel("Protocol:"))
         connection_layout.addWidget(self.protocol_dropdown)
         connection_layout.addWidget(QLabel("Host/IP:"))
@@ -95,7 +95,7 @@ class ConfigBridgeWindow(QMainWindow):
         Real SSH/Telnet connection logic will be added later.
         """
 
-        vendor = self.vendor_dropdown.currentText()
+        cli_mode = self.cli_mode_dropdown.currentText()
         protocol = self.protocol_dropdown.currentText()
         host = self.host_input.text().strip()
 
@@ -105,7 +105,7 @@ class ConfigBridgeWindow(QMainWindow):
 
         message = self.session_manager.connect(
             host=host,
-            vendor=vendor,
+            cli_mode=cli_mode,
             protocol=protocol,
         )
 
