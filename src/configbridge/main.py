@@ -13,23 +13,36 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from configbridge.connections.session_manager import SessionManager
+
 
 class ConfigBridgeWindow(QMainWindow):
+    """
+    Main ConfigBridge application window.
+
+    Phase 1 focuses on the Network Session Manager interface.
+    """
+
     def __init__(self):
         super().__init__()
+
+        # Create one session manager instance for the lifetime of the window.
+        self.session_manager = SessionManager()
 
         self.setWindowTitle("ConfigBridge")
         self.setMinimumSize(900, 600)
 
         self.vendor_dropdown = QComboBox()
-        self.vendor_dropdown.addItems([
-            "Cisco IOS",
-            "Juniper Junos",
-            "Cisco Nexus NX-OS",
-            "Aruba",
-            "HP",
-            "Arista EOS",
-        ])
+        self.vendor_dropdown.addItems(
+            [
+                "Cisco IOS",
+                "Juniper Junos",
+                "Cisco Nexus NX-OS",
+                "Aruba",
+                "HP",
+                "Arista EOS",
+            ]
+        )
 
         self.protocol_dropdown = QComboBox()
         self.protocol_dropdown.addItems(["SSH", "Telnet"])
@@ -75,6 +88,13 @@ class ConfigBridgeWindow(QMainWindow):
         self.setCentralWidget(container)
 
     def handle_connect_clicked(self):
+        """
+        Handle the Connect button click.
+
+        This currently calls the simulated SessionManager connection method.
+        Real SSH/Telnet connection logic will be added later.
+        """
+
         vendor = self.vendor_dropdown.currentText()
         protocol = self.protocol_dropdown.currentText()
         host = self.host_input.text().strip()
@@ -83,19 +103,31 @@ class ConfigBridgeWindow(QMainWindow):
             self.output_area.appendPlainText("Please enter a host/IP address.")
             return
 
-        self.output_area.appendPlainText(
-            f"[INFO] Connect clicked: vendor={vendor}, protocol={protocol}, host={host}"
+        message = self.session_manager.connect(
+            host=host,
+            vendor=vendor,
+            protocol=protocol,
         )
-        self.output_area.appendPlainText("[INFO] Real connection logic will be added next.")
+
+        self.output_area.appendPlainText(message)
 
     def handle_send_clicked(self):
+        """
+        Handle the Send button click.
+
+        This currently sends the command to the simulated SessionManager.
+        """
+
         command = self.command_input.text().strip()
 
         if not command:
             return
 
         self.output_area.appendPlainText(f"> {command}")
-        self.output_area.appendPlainText("[INFO] Command sending will be added next.")
+
+        response = self.session_manager.send_command(command)
+        self.output_area.appendPlainText(response)
+
         self.command_input.clear()
 
 
