@@ -22,10 +22,10 @@ class SessionManager:
         # These values store the current session state.
         self.connected = False
         self.host = None
-        self.vendor = None
+        self.cli_mode = None
         self.protocol = None
 
-    def connect(self, host: str, vendor: str, protocol: str) -> str:
+    def connect(self, host: str, cli_mode: str, protocol: str) -> str:
         """
         Simulate a connection to a network device.
 
@@ -33,11 +33,11 @@ class SessionManager:
         """
 
         self.host = host
-        self.vendor = vendor
+        self.cli_mode = cli_mode
         self.protocol = protocol
         self.connected = True
 
-        return f"Connected (simulated) to {host} using {protocol} [{vendor}]"
+        return f"Connected (simulated) to {host} using {protocol} [{cli_mode}]"
 
     def disconnect(self) -> str:
         """
@@ -46,7 +46,7 @@ class SessionManager:
 
         self.connected = False
         self.host = None
-        self.vendor = None
+        self.cli_mode = None
         self.protocol = None
 
         return "Disconnected (simulated)"
