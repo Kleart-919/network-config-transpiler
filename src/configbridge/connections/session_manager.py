@@ -2,9 +2,6 @@
 Session Manager
 
 This module controls the active network session.
-
-The GUI communicates with SessionManager only. SessionManager then chooses the
-correct connection class, such as SSHConnection or TelnetConnection.
 """
 
 from configbridge.connections.ssh_connection import SSHConnection
@@ -19,15 +16,32 @@ class SessionManager:
     def __init__(self):
         self.connection = None
 
-    def connect(self, host: str, cli_mode: str, protocol: str) -> str:
+    def connect(
+        self,
+        host: str,
+        cli_mode: str,
+        protocol: str,
+        username: str = "",
+        password: str = "",
+    ) -> str:
         """
         Create a connection object based on the selected protocol.
         """
 
         if protocol == "SSH":
-            self.connection = SSHConnection(host=host, cli_mode=cli_mode)
+            self.connection = SSHConnection(
+                host=host,
+                cli_mode=cli_mode,
+                username=username,
+                password=password,
+            )
         elif protocol == "Telnet":
-            self.connection = TelnetConnection(host=host, cli_mode=cli_mode)
+            self.connection = TelnetConnection(
+                host=host,
+                cli_mode=cli_mode,
+                username=username,
+                password=password,
+            )
         else:
             return f"ERROR: Unsupported protocol selected: {protocol}"
 
@@ -45,12 +59,22 @@ class SessionManager:
         self.connection = None
         return message
 
-    def send_command(self, command: str) -> str:
+    def write(self, data: str) -> None:
         """
-        Send a command through the active connection.
+        Send raw terminal input to the active connection.
         """
 
         if self.connection is None:
-            return "ERROR: No active session."
+            return
 
-        return self.connection.send_command(command)
+        self.connection.write(data)
+
+    def read(self) -> str:
+        """
+        Read currently available output from the active connection.
+        """
+
+        if self.connection is None:
+            return ""
+
+        return self.connection.read()
