@@ -1,5 +1,7 @@
 import sys
 
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QTextCursor
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -16,6 +18,75 @@ from PySide6.QtWidgets import (
 from configbridge.connections.session_manager import SessionManager
 
 
+class TerminalWidget(QPlainTextEdit):
+    """
+    A simple terminal-like widget.
+
+    This is not a full terminal emulator yet.
+    It allows the user to type commands directly into the terminal area.
+    """
+
+    def __init__(self, session_manager: SessionManager):
+        super().__init__()
+
+        self.session_manager = session_manager
+        self.prompt = "> "
+        self.current_input_start = 0
+
+        self.setStyleSheet(
+            """
+            QPlainTextEdit {
+                background-color: #111111;
+                color: #eeeeee;
+                font-family: Consolas, monospace;
+                font-size: 13px;
+            }
+            """
+        )
+
+        self.setPlainText(self.prompt)
+        self.moveCursor(QTextCursor.End)
+        self.current_input_start = len(self.toPlainText())
+
+    def keyPressEvent(self, event):
+        """
+        Handle Enter so typed text is sent as a command.
+        """
+
+        if event.key() in (Qt.Key_Return, Qt.Key_Enter):
+            command = self._get_current_command().strip()
+            self.appendPlainText("")
+
+            if command:
+                response = self.session_manager.send_command(command)
+                self.appendPlainText(response)
+
+            self.appendPlainText(self.prompt)
+            self.moveCursor(QTextCursor.End)
+            self.current_input_start = len(self.toPlainText())
+            return
+
+        super().keyPressEvent(event)
+
+    def write_line(self, text: str):
+        """
+        Write a line to the terminal.
+        """
+
+        self.appendPlainText(text)
+        self.appendPlainText(self.prompt)
+        self.moveCursor(QTextCursor.End)
+        self.current_input_start = len(self.toPlainText())
+
+    def _get_current_command(self) -> str:
+        """
+        Return only the text typed after the current prompt.
+        """
+
+        text = self.toPlainText()
+        return text[self.current_input_start:]
+
+
 class ConfigBridgeWindow(QMainWindow):
     """
     Main ConfigBridge application window.
@@ -26,7 +97,6 @@ class ConfigBridgeWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        # Create one session manager instance for the lifetime of the window.
         self.session_manager = SessionManager()
 
         self.setWindowTitle("ConfigBridge")
@@ -53,20 +123,12 @@ class ConfigBridgeWindow(QMainWindow):
         self.connect_button = QPushButton("Connect")
         self.connect_button.clicked.connect(self.handle_connect_clicked)
 
-        self.output_area = QPlainTextEdit()
-        self.output_area.setReadOnly(True)
-        self.output_area.setPlaceholderText("Session output will appear here...")
-
-        self.command_input = QLineEdit()
-        self.command_input.setPlaceholderText("Enter command...")
-
-        self.send_button = QPushButton("Send")
-        self.send_button.clicked.connect(self.handle_send_clicked)
+        self.terminal = TerminalWidget(self.session_manager)
 
         main_layout = QVBoxLayout()
 
         connection_layout = QHBoxLayout()
-        connection_layout.addWidget(QLabel("Cli mode:"))
+        connection_layout.addWidget(QLabel("CLI Mode:"))
         connection_layout.addWidget(self.cli_mode_dropdown)
         connection_layout.addWidget(QLabel("Protocol:"))
         connection_layout.addWidget(self.protocol_dropdown)
@@ -74,14 +136,8 @@ class ConfigBridgeWindow(QMainWindow):
         connection_layout.addWidget(self.host_input)
         connection_layout.addWidget(self.connect_button)
 
-        command_layout = QHBoxLayout()
-        command_layout.addWidget(self.command_input)
-        command_layout.addWidget(self.send_button)
-
         main_layout.addLayout(connection_layout)
-        main_layout.addWidget(QLabel("Session Output"))
-        main_layout.addWidget(self.output_area)
-        main_layout.addLayout(command_layout)
+        main_layout.addWidget(self.terminal)
 
         container = QWidget()
         container.setLayout(main_layout)
@@ -91,8 +147,7 @@ class ConfigBridgeWindow(QMainWindow):
         """
         Handle the Connect button click.
 
-        This currently calls the simulated SessionManager connection method.
-        Real SSH/Telnet connection logic will be added later.
+        This currently connects to the simulated SessionManager.
         """
 
         cli_mode = self.cli_mode_dropdown.currentText()
@@ -100,7 +155,7 @@ class ConfigBridgeWindow(QMainWindow):
         host = self.host_input.text().strip()
 
         if not host:
-            self.output_area.appendPlainText("Please enter a host/IP address.")
+            self.terminal.write_line("ERROR: Please enter a host/IP address.")
             return
 
         message = self.session_manager.connect(
@@ -109,26 +164,7 @@ class ConfigBridgeWindow(QMainWindow):
             protocol=protocol,
         )
 
-        self.output_area.appendPlainText(message)
-
-    def handle_send_clicked(self):
-        """
-        Handle the Send button click.
-
-        This currently sends the command to the simulated SessionManager.
-        """
-
-        command = self.command_input.text().strip()
-
-        if not command:
-            return
-
-        self.output_area.appendPlainText(f"> {command}")
-
-        response = self.session_manager.send_command(command)
-        self.output_area.appendPlainText(response)
-
-        self.command_input.clear()
+        self.terminal.write_line(message)
 
 
 def main():
