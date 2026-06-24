@@ -1,6 +1,6 @@
 import sys
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QTextCursor
 from PySide6.QtWidgets import (
     QApplication,
@@ -20,18 +20,18 @@ from configbridge.connections.session_manager import SessionManager
 
 class TerminalWidget(QPlainTextEdit):
     """
-    A simple terminal-like widget.
+    Simple terminal-style widget.
 
-    This is not a full terminal emulator yet.
-    It allows the user to type commands directly into the terminal area.
+    The switch echoes typed characters back to us, so this widget does NOT
+    display typed characters locally. It only displays what comes back from
+    the SSH session.
+
+    It also interprets basic terminal control characters such as backspace.
     """
 
     def __init__(self, session_manager: SessionManager):
         super().__init__()
-
         self.session_manager = session_manager
-        self.prompt = "> "
-        self.current_input_start = 0
 
         self.setStyleSheet(
             """
@@ -44,54 +44,67 @@ class TerminalWidget(QPlainTextEdit):
             """
         )
 
-        self.setPlainText(self.prompt)
-        self.moveCursor(QTextCursor.End)
-        self.current_input_start = len(self.toPlainText())
+        self.setPlaceholderText("Terminal session output will appear here...")
 
     def keyPressEvent(self, event):
         """
-        Handle Enter so typed text is sent as a command.
+        Send keystrokes to the switch.
+
+        Do not print typed characters locally. Cisco echoes them back.
         """
 
         if event.key() in (Qt.Key_Return, Qt.Key_Enter):
-            command = self._get_current_command().strip()
-            self.appendPlainText("")
+            self.session_manager.write("\n")
+            return
 
-            if command:
-                response = self.session_manager.send_command(command)
-                self.appendPlainText(response)
+        if event.key() == Qt.Key_Backspace:
+            self.session_manager.write("\x7f")
+            return
 
-            self.appendPlainText(self.prompt)
-            self.moveCursor(QTextCursor.End)
-            self.current_input_start = len(self.toPlainText())
+        text = event.text()
+
+        if text:
+            self.session_manager.write(text)
             return
 
         super().keyPressEvent(event)
 
-    def write_line(self, text: str):
+    def write_output(self, text: str):
         """
-        Write a line to the terminal.
+        Display output received from the switch.
+
+        This handles simple terminal behaviour:
+        - backspace deletes the previous visible character
+        - bell is ignored
+        - carriage return is ignored
         """
 
-        self.appendPlainText(text)
-        self.appendPlainText(self.prompt)
+        if not text:
+            return
+
         self.moveCursor(QTextCursor.End)
-        self.current_input_start = len(self.toPlainText())
+        cursor = self.textCursor()
 
-    def _get_current_command(self) -> str:
-        """
-        Return only the text typed after the current prompt.
-        """
+        for char in text:
+            if char == "\x07":
+                continue
 
-        text = self.toPlainText()
-        return text[self.current_input_start:]
+            if char == "\r":
+                continue
+
+            if char == "\x08":
+                cursor.deletePreviousChar()
+                continue
+
+            cursor.insertText(char)
+
+        self.setTextCursor(cursor)
+        self.moveCursor(QTextCursor.End)
 
 
 class ConfigBridgeWindow(QMainWindow):
     """
     Main ConfigBridge application window.
-
-    Phase 1 focuses on the Network Session Manager interface.
     """
 
     def __init__(self):
@@ -100,7 +113,7 @@ class ConfigBridgeWindow(QMainWindow):
         self.session_manager = SessionManager()
 
         self.setWindowTitle("ConfigBridge")
-        self.setMinimumSize(900, 600)
+        self.setMinimumSize(1000, 600)
 
         self.cli_mode_dropdown = QComboBox()
         self.cli_mode_dropdown.addItems(
@@ -120,8 +133,18 @@ class ConfigBridgeWindow(QMainWindow):
         self.host_input = QLineEdit()
         self.host_input.setPlaceholderText("Device IP address or hostname")
 
+        self.username_input = QLineEdit()
+        self.username_input.setPlaceholderText("Username")
+
+        self.password_input = QLineEdit()
+        self.password_input.setPlaceholderText("Password")
+        self.password_input.setEchoMode(QLineEdit.Password)
+
         self.connect_button = QPushButton("Connect")
         self.connect_button.clicked.connect(self.handle_connect_clicked)
+
+        self.disconnect_button = QPushButton("Disconnect")
+        self.disconnect_button.clicked.connect(self.handle_disconnect_clicked)
 
         self.terminal = TerminalWidget(self.session_manager)
 
@@ -134,7 +157,12 @@ class ConfigBridgeWindow(QMainWindow):
         connection_layout.addWidget(self.protocol_dropdown)
         connection_layout.addWidget(QLabel("Host/IP:"))
         connection_layout.addWidget(self.host_input)
+        connection_layout.addWidget(QLabel("Username:"))
+        connection_layout.addWidget(self.username_input)
+        connection_layout.addWidget(QLabel("Password:"))
+        connection_layout.addWidget(self.password_input)
         connection_layout.addWidget(self.connect_button)
+        connection_layout.addWidget(self.disconnect_button)
 
         main_layout.addLayout(connection_layout)
         main_layout.addWidget(self.terminal)
@@ -143,28 +171,52 @@ class ConfigBridgeWindow(QMainWindow):
         container.setLayout(main_layout)
         self.setCentralWidget(container)
 
+        self.read_timer = QTimer()
+        self.read_timer.timeout.connect(self.read_from_session)
+        self.read_timer.start(100)
+
     def handle_connect_clicked(self):
-        """
-        Handle the Connect button click.
-
-        This currently connects to the simulated SessionManager.
-        """
-
         cli_mode = self.cli_mode_dropdown.currentText()
         protocol = self.protocol_dropdown.currentText()
         host = self.host_input.text().strip()
+        username = self.username_input.text().strip()
+        password = self.password_input.text()
 
         if not host:
-            self.terminal.write_line("ERROR: Please enter a host/IP address.")
+            self.terminal.write_output("ERROR: Please enter a host/IP address.\n")
             return
+
+        if protocol == "SSH" and (not username or not password):
+            self.terminal.write_output(
+                "ERROR: SSH requires username and password for this implementation.\n"
+            )
+            return
+
+        self.terminal.write_output(
+            f"\n[ConfigBridge] Connecting to {host} using {protocol} "
+            f"with CLI mode {cli_mode}...\n"
+        )
 
         message = self.session_manager.connect(
             host=host,
             cli_mode=cli_mode,
             protocol=protocol,
+            username=username,
+            password=password,
         )
 
-        self.terminal.write_line(message)
+        if message:
+            self.terminal.write_output(message + "\n")
+
+    def handle_disconnect_clicked(self):
+        message = self.session_manager.disconnect()
+        self.terminal.write_output(f"\n[ConfigBridge] {message}\n")
+
+    def read_from_session(self):
+        output = self.session_manager.read()
+
+        if output:
+            self.terminal.write_output(output)
 
 
 def main():
