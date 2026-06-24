@@ -1,0 +1,16 @@
+hostname CORE-SW1
+
+vlan 10
+ name USERS
+vlan 20
+ name SERVERS
+
+interface GigabitEthernet1/0/1
+ description Uplink to Distribution
+ switchport mode trunk
+ switchport trunk allowed vlan 10,20
+
+interface GigabitEthernet1/0/2
+ description User Access Port
+ switchport mode access
+ switchport access vlan 10
