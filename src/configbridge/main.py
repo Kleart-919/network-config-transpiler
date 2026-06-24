@@ -1,4 +1,6 @@
 import sys
+from datetime import datetime
+from pathlib import Path
 
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QTextCursor
@@ -22,16 +24,14 @@ class TerminalWidget(QPlainTextEdit):
     """
     Simple terminal-style widget.
 
-    The switch echoes typed characters back to us, so this widget does NOT
-    display typed characters locally. It only displays what comes back from
-    the SSH session.
-
-    It also interprets basic terminal control characters such as backspace.
+    The switch echoes typed characters back, so this widget does not display
+    typed characters locally. It only displays what comes back from the session.
     """
 
-    def __init__(self, session_manager: SessionManager):
+    def __init__(self, session_manager: SessionManager, log_callback=None):
         super().__init__()
         self.session_manager = session_manager
+        self.log_callback = log_callback
 
         self.setStyleSheet(
             """
@@ -48,9 +48,7 @@ class TerminalWidget(QPlainTextEdit):
 
     def keyPressEvent(self, event):
         """
-        Send keystrokes to the switch.
-
-        Do not print typed characters locally. Cisco echoes them back.
+        Send keystrokes to the active session.
         """
 
         if event.key() in (Qt.Key_Return, Qt.Key_Enter):
@@ -71,16 +69,14 @@ class TerminalWidget(QPlainTextEdit):
 
     def write_output(self, text: str):
         """
-        Display output received from the switch.
-
-        This handles simple terminal behaviour:
-        - backspace deletes the previous visible character
-        - bell is ignored
-        - carriage return is ignored
+        Display output received from the switch and write it to the session log.
         """
 
         if not text:
             return
+
+        if self.log_callback:
+            self.log_callback(text)
 
         self.moveCursor(QTextCursor.End)
         cursor = self.textCursor()
@@ -111,6 +107,7 @@ class ConfigBridgeWindow(QMainWindow):
         super().__init__()
 
         self.session_manager = SessionManager()
+        self.log_file_path = None
 
         self.setWindowTitle("ConfigBridge")
         self.setMinimumSize(1000, 600)
@@ -146,7 +143,12 @@ class ConfigBridgeWindow(QMainWindow):
         self.disconnect_button = QPushButton("Disconnect")
         self.disconnect_button.clicked.connect(self.handle_disconnect_clicked)
 
-        self.terminal = TerminalWidget(self.session_manager)
+        self.status_label = QLabel("Status: Disconnected")
+
+        self.terminal = TerminalWidget(
+            self.session_manager,
+            log_callback=self.write_session_log,
+        )
 
         main_layout = QVBoxLayout()
 
@@ -165,6 +167,7 @@ class ConfigBridgeWindow(QMainWindow):
         connection_layout.addWidget(self.disconnect_button)
 
         main_layout.addLayout(connection_layout)
+        main_layout.addWidget(self.status_label)
         main_layout.addWidget(self.terminal)
 
         container = QWidget()
@@ -174,6 +177,38 @@ class ConfigBridgeWindow(QMainWindow):
         self.read_timer = QTimer()
         self.read_timer.timeout.connect(self.read_from_session)
         self.read_timer.start(100)
+
+    def start_session_log(self, host: str, protocol: str, cli_mode: str):
+        """
+        Create a new log file for the current session.
+        """
+
+        logs_dir = Path("logs")
+        logs_dir.mkdir(exist_ok=True)
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        safe_host = host.replace(".", "_").replace("/", "_").replace("\\", "_")
+
+        self.log_file_path = logs_dir / f"session_{safe_host}_{timestamp}.log"
+
+        self.write_session_log("=" * 70 + "\n")
+        self.write_session_log("ConfigBridge Session Log\n")
+        self.write_session_log(f"Started: {datetime.now()}\n")
+        self.write_session_log(f"Host: {host}\n")
+        self.write_session_log(f"Protocol: {protocol}\n")
+        self.write_session_log(f"CLI Mode: {cli_mode}\n")
+        self.write_session_log("=" * 70 + "\n\n")
+
+    def write_session_log(self, text: str):
+        """
+        Append text to the current session log file.
+        """
+
+        if self.log_file_path is None:
+            return
+
+        with open(self.log_file_path, "a", encoding="utf-8") as log_file:
+            log_file.write(text)
 
     def handle_connect_clicked(self):
         cli_mode = self.cli_mode_dropdown.currentText()
@@ -192,6 +227,14 @@ class ConfigBridgeWindow(QMainWindow):
             )
             return
 
+        self.start_session_log(
+            host=host,
+            protocol=protocol,
+            cli_mode=cli_mode,
+        )
+
+        self.status_label.setText(f"Status: Connecting | {protocol} | {cli_mode} | {host}")
+
         self.terminal.write_output(
             f"\n[ConfigBridge] Connecting to {host} using {protocol} "
             f"with CLI mode {cli_mode}...\n"
@@ -208,9 +251,23 @@ class ConfigBridgeWindow(QMainWindow):
         if message:
             self.terminal.write_output(message + "\n")
 
+        if message.startswith("ERROR"):
+            self.status_label.setText("Status: Disconnected")
+            self.write_session_log(f"\n[ConfigBridge] Connection failed: {message}\n")
+        else:
+            self.status_label.setText(
+                f"Status: Connected | {protocol} | {cli_mode} | {host}"
+            )
+            self.write_session_log("\n[ConfigBridge] Connection successful.\n")
+
     def handle_disconnect_clicked(self):
         message = self.session_manager.disconnect()
+
+        self.status_label.setText("Status: Disconnected")
+
         self.terminal.write_output(f"\n[ConfigBridge] {message}\n")
+        self.write_session_log(f"\n[ConfigBridge] {message}\n")
+        self.write_session_log(f"Ended: {datetime.now()}\n")
 
     def read_from_session(self):
         output = self.session_manager.read()
