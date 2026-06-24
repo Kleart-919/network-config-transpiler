@@ -3,15 +3,21 @@ Juniper Generator
 
 This module converts the vendor-neutral IntentModel into Juniper Junos
 set-style configuration commands.
+
+Vendor syntax templates are loaded from the vendor template metadata layer.
 """
 
 from configbridge.models.intent_model import IntentModel
+from configbridge.plugins.vendor_templates import VENDOR_TEMPLATES
 
 
 class JuniperGenerator:
     """
     Generates Juniper Junos set commands from the IntentModel.
     """
+
+    def __init__(self):
+        self.templates = VENDOR_TEMPLATES["juniper_junos"]
 
     def generate(self, intent: IntentModel) -> str:
         """
@@ -21,12 +27,19 @@ class JuniperGenerator:
         lines = []
 
         if intent.hostname:
-            lines.append(f"set system host-name {intent.hostname}")
+            lines.append(
+                self.templates["hostname"].format(hostname=intent.hostname)
+            )
             lines.append("")
 
         for vlan in intent.vlans:
             vlan_name = vlan.name or f"VLAN_{vlan.vlan_id}"
-            lines.append(f"set vlans {vlan_name} vlan-id {vlan.vlan_id}")
+            lines.append(
+                self.templates["vlan"].format(
+                    vlan_name=vlan_name,
+                    vlan_id=vlan.vlan_id,
+                )
+            )
 
         if intent.vlans:
             lines.append("")
@@ -36,23 +49,33 @@ class JuniperGenerator:
 
             if interface.description:
                 lines.append(
-                    f'set interfaces {juniper_interface} description "{interface.description}"'
+                    self.templates["interface_description"].format(
+                        interface_name=juniper_interface,
+                        description=interface.description,
+                    )
                 )
 
             if interface.mode == "access":
                 lines.append(
-                    f"set interfaces {juniper_interface} unit 0 family ethernet-switching interface-mode access"
+                    self.templates["access_mode"].format(
+                        interface_name=juniper_interface
+                    )
                 )
 
                 if interface.access_vlan is not None:
                     vlan_name = self.find_vlan_name(intent, interface.access_vlan)
                     lines.append(
-                        f"set interfaces {juniper_interface} unit 0 family ethernet-switching vlan members {vlan_name}"
+                        self.templates["access_vlan"].format(
+                            interface_name=juniper_interface,
+                            vlan_name=vlan_name,
+                        )
                     )
 
             if interface.mode == "trunk":
                 lines.append(
-                    f"set interfaces {juniper_interface} unit 0 family ethernet-switching interface-mode trunk"
+                    self.templates["trunk_mode"].format(
+                        interface_name=juniper_interface
+                    )
                 )
 
                 if interface.allowed_vlans:
@@ -62,7 +85,10 @@ class JuniperGenerator:
                     ]
                     vlan_text = " ".join(vlan_members)
                     lines.append(
-                        f"set interfaces {juniper_interface} unit 0 family ethernet-switching vlan members [ {vlan_text} ]"
+                        self.templates["allowed_vlans"].format(
+                            interface_name=juniper_interface,
+                            vlans=vlan_text,
+                        )
                     )
 
             lines.append("")
@@ -87,12 +113,7 @@ class JuniperGenerator:
         Convert a Cisco-style interface name into a basic Juniper-style name.
 
         This is a temporary demonstration mapping for Phase 2.
-
-        Example:
-            GigabitEthernet1/0/1 -> ge-0/0/1
-
-        Future versions should use an interface mapping layer rather than a
-        hardcoded conversion.
+        Future versions should use an interface mapping layer.
         """
 
         if interface_name.startswith("GigabitEthernet"):
