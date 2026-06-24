@@ -1,0 +1,9 @@
+hostname ACCESS-SW1
+
+vlan 30
+ name GUESTS
+
+interface GigabitEthernet1/0/10
+ description Guest Access Port
+ switchport mode access
+ switchport access vlan 30

@@ -1,0 +1,6 @@
+hostname VLAN-SW1
+
+vlan 100
+ name MANAGEMENT
+vlan 200
+ name VOICE
