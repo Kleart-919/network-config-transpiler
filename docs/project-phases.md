@@ -1,478 +1,333 @@
-# ConfigBridge Project Phases
+# ConfigBridge Development Phases
 
-## Project Overview
+## Overview
 
-ConfigBridge is divided into four major development phases following an initial planning and design phase.
+ConfigBridge follows an iterative software engineering methodology in which each phase produces a functional prototype while progressively refining the overall architecture.
 
-The project adopts an iterative development approach where each phase produces a working deliverable that forms the foundation for the next phase.
+Rather than attempting to implement every feature from the outset, each phase validates a distinct architectural layer before introducing additional functionality.
 
-The final objective is to produce a desktop-based multi-vendor network access and configuration transpilation platform capable of translating network configuration intent between heterogeneous network operating systems.
-
-The core design principle is:
-
-```text
-Any Supported Vendor Configuration
-        ↓
-Intermediate Intent Model
-        ↓
-Any Supported Vendor Configuration
-```
-
-This means the system is not designed only for Cisco-to-Juniper translation. Instead, each supported vendor has a parser that converts vendor-specific syntax into the shared Intermediate Intent Model, and each supported vendor has a generator that converts the model back into that vendor's native syntax.
+The development roadmap is organised into four major phases, preceded by an initial planning phase.
 
 ---
 
-# Pre-Phase: Planning and Architecture
+# Pre-Phase – Research, Planning and System Design
 
-## Objective
+## Objectives
 
-Establish the project foundation before implementation begins.
-
-## Tasks
-
-### Project Definition
-
-* Define project scope
-* Define research question
-* Define objectives
-* Define supported vendors
-
-### Documentation
-
-* Create proposal
-* Create design document
-* Create application architecture
-* Create project roadmap
-
-### Repository Setup
-
-* Create GitHub repository
-* Create project structure
-* Configure version control workflow
-
-### Architecture Design
-
-* Define Network Session Manager
-* Define Configuration Transpilation Engine
-* Define Intermediate Intent Model
-* Define Vendor Abstraction Framework
-* Define deployment workflow
+Establish the technical foundation of the project before implementation begins.
 
 ## Deliverables
 
-* Proposal
-* Design document
-* Architecture document
+* Literature review
+* Project proposal
+* Software architecture
+* System design
+* Technology selection
 * GitHub repository
-* Project roadmap
-
-## Status
-
-Completed
+* Python project structure
+* Development roadmap
+* Initial documentation
 
 ---
 
-# Phase 1: Network Session Manager
+# Phase 1 – Network Session Manager
 
 ## Objective
 
-Develop a desktop application capable of establishing and managing network sessions.
+Develop a stable communication layer capable of interacting with heterogeneous network devices.
 
-## Scope
+The Network Session Manager provides the foundation upon which all higher-level architectural components depend.
 
-Protocols:
+## Features
 
-* SSH
-* Telnet
+### Session Management
 
-Future:
-
-* Serial Console
-
-## Components
-
-### User Interface
-
-The first graphical interface will provide:
-
-* IP address input
-* Username input
-* Password input
-* Vendor selection
-* Protocol selection
-* Connect button
-* Terminal output window
-
-### Connection Engine
-
-Responsibilities:
-
-* Session creation
-* Session termination
-* Command execution
-* Output collection
-
-### Session Logging
-
-Store:
-
-* Session timestamps
-* Connection history
-* Executed commands
-* Device responses
-
-## Deliverables
-
-### ConfigBridge v0.1
-
-Features:
-
-* Desktop GUI
 * SSH support
 * Telnet support
+* Future Serial Console support
+
+### Interactive Terminal
+
+* Interactive CLI
 * Session logging
-* Vendor selection
+* Terminal history
+* Connection status
 
-## Success Criteria
+### Session Architecture
 
-* Successful SSH connection
-* Successful Telnet connection
-* Commands executed remotely
-* Output displayed correctly
+* Session Manager
+* SSH Connection
+* Telnet Connection
+* Connection abstraction layer
+
+## Deliverables
+
+* Interactive terminal
+* Real SSH connectivity
+* Telnet support
+* Session logging
+* Connection management framework
 
 ---
 
-# Phase 2: Configuration Transpilation Engine
+# Phase 2 – Discovery and Intent-Driven Configuration Transpilation
 
 ## Objective
 
-Develop the core translation system that supports translation through an Intermediate Intent Model rather than one-to-one command mapping.
+Develop a discovery-assisted transpilation engine capable of understanding network configurations independently of vendor syntax.
 
-## Scope
+Unlike traditional command translation systems, Phase 2 separates:
 
-Initial vendors:
+* operational device knowledge;
+* network relationships; and
+* configuration intent.
 
-* Cisco IOS
-* Juniper Junos
+## Stage 2.1 – Discovery Framework
 
-Future vendors supported through the same architecture:
+### Objectives
 
-* Cisco Nexus NX-OS
-* Aruba
-* HP
-* Arista
+Develop a framework capable of discovering operational information from connected network devices.
 
-## Components
+### Components
 
-### Vendor Parsers
+* Discovery Manager
+* Cisco Discovery Parser
+* Juniper Discovery Parser
 
-Initial implementations:
+### Deliverables
 
-* Cisco IOS Parser
-* Juniper Junos Parser
+* Operational command collection
+* Discovery framework
+* Vendor discovery modules
 
-Responsibilities:
+---
 
-* Parse vendor-specific configuration syntax
-* Identify supported configuration blocks
-* Convert vendor syntax into structured objects
-* Generate AST nodes
+## Stage 2.2 – Device Inventory
 
-Supported configuration areas:
+### Objectives
+
+Construct an internal representation of discovered network devices.
+
+### Stored Information
+
+* Hostname
+* Vendor
+* Interface inventory
+* Operational status
+* Interface descriptions
+* VLAN membership
+* Link speed
+* LLDP/CDP neighbours
+* Future hardware capabilities
+
+### Deliverables
+
+* Device Inventory Model
+* Discovery data storage
+* Inventory validation
+
+---
+
+## Stage 2.3 – Relationship Engine
+
+### Objectives
+
+Determine relationships between network objects without relying on vendor-specific interface naming.
+
+Rather than assuming interface equivalence, relationships are inferred from discovered operational information.
+
+### Relationship Sources
+
+* Interface descriptions
+* Operational state
+* VLAN membership
+* LLDP neighbours
+* CDP neighbours
+* Link speed
+* Port-channel membership
+
+Future versions may incorporate confidence scoring and topology-aware inference.
+
+### Deliverables
+
+* Relationship Engine
+* Interface relationship model
+* Relationship validation framework
+
+---
+
+## Stage 2.4 – Vendor-Neutral Intent Model
+
+### Objectives
+
+Represent network behaviour independently of vendor syntax.
+
+### Supported Concepts
 
 * Hostname
 * VLANs
-* Interface configuration
+* Layer 2 interfaces
 * Access ports
 * Trunk ports
-* Allowed VLANs
-* Static routes
-* Default routes
-* NTP
-* SNMP
-* ACLs (investigative support)
+* Interface descriptions
+* Allowed VLAN membership
 
-### Abstract Syntax Tree
+Future iterations will extend the model to include Layer 3 networking and enterprise services.
 
-Generate a structured configuration hierarchy.
+### Deliverables
 
-Example:
-
-```text
-Configuration
-├── Hostname
-├── VLANs
-├── Interfaces
-├── Routes
-├── NTP
-├── SNMP
-└── ACLs
-```
-
-### Intermediate Intent Model
-
-Convert vendor-specific syntax into vendor-neutral network intent.
-
-Example:
-
-```text
-Interface
-Trunk Port
-Access Port
-Allowed VLANs
-Static Route
-Default Route
-NTP Server
-SNMP Community
-Access Control Rule
-```
-
-The Intermediate Intent Model is the central layer that allows the system to support multi-directional translation.
-
-Example workflow:
-
-```text
-Cisco IOS Configuration
-        ↓
-Cisco IOS Parser
-        ↓
-Intermediate Intent Model
-        ↓
-Juniper Junos Generator
-        ↓
-Juniper Junos Configuration
-```
-
-Reverse workflow:
-
-```text
-Juniper Junos Configuration
-        ↓
-Juniper Junos Parser
-        ↓
-Intermediate Intent Model
-        ↓
-Cisco IOS Generator
-        ↓
-Cisco IOS Configuration
-```
-
-General workflow:
-
-```text
-Any Supported Vendor Parser
-        ↓
-Intermediate Intent Model
-        ↓
-Any Supported Vendor Generator
-```
-
-### Vendor Generators
-
-Initial implementations:
-
-* Cisco IOS Generator
-* Juniper Junos Generator
-
-Responsibilities:
-
-* Convert the Intermediate Intent Model into vendor-specific syntax
-* Apply vendor-specific command structure
-* Apply vendor-specific save or commit behaviour
-* Generate deployment-ready configuration
-
-## Deliverables
-
-### ConfigBridge v0.2
-
-Features:
-
-* Cisco IOS parser
-* Juniper Junos parser
-* AST generation
-* Intermediate Intent Model
-* Cisco IOS generator
-* Juniper Junos generator
-* Cisco IOS to Juniper Junos translation
-* Juniper Junos to Cisco IOS translation
-
-## Success Criteria
-
-* Successful parsing of supported Cisco IOS configuration
-* Successful parsing of supported Juniper Junos configuration
-* Correct AST generation
-* Correct Intermediate Intent Model generation
-* Correct vendor-specific output generation
-* Successful multi-directional translation between Cisco IOS and Juniper Junos
+* Vendor-Neutral Intent Model
+* Intent schema
+* Internal data structures
 
 ---
 
-# Phase 3: Vendor Framework and Safety Layer
+## Stage 2.5 – Configuration Parsers
 
-## Objective
-
-Expand the architecture for future vendors and implement safe deployment controls.
-
-## Components
-
-### Vendor Abstraction Framework
-
-Each vendor plugin contains:
-
-* Parser
-* Generator
-* Deployment rules
-* Interface mapping
-* Validation rules
-* Save or commit behaviour
-
-### Vendor Plugins
-
-Initial:
+### Current Vendors
 
 * Cisco IOS
 * Juniper Junos
 
-Framework prepared for:
+### Future Vendors
 
-* Cisco Nexus NX-OS
+* Cisco Nexus
 * Aruba
 * HP
-* Arista
+* Arista EOS
 
-The purpose of the plugin system is to allow new vendors to be added without redesigning the core transpilation engine.
+### Deliverables
 
-### Risk Assessment Engine
-
-Detect high-risk commands before execution.
-
-Examples:
-
-* reload
-* write erase
-* erase startup-config
-* delete
-* shutdown
-* no interface
-
-### Validation Engine
-
-Check:
-
-* Unsupported features
-* Missing dependencies
-* Translation conflicts
-* Vendor-specific limitations
-* Commands that require confirmation before deployment
-
-## Deliverables
-
-### ConfigBridge v0.3
-
-Features:
-
-* Vendor framework
-* Plugin system
-* Risk assessment
-* Validation engine
-* Vendor-aware save and commit behaviour
-
-## Success Criteria
-
-* Dangerous commands detected
-* Confirmation required before risky commands
-* Plugin architecture operational
-* Vendor expansion possible without core redesign
-* Vendor-specific save and commit rules applied correctly
+* Vendor configuration parsing
+* Intent model population
+* Parser validation
 
 ---
 
-# Phase 4: Comparison, Deployment and Evaluation
+## Stage 2.6 – Configuration Generators
+
+### Current Vendors
+
+* Cisco IOS
+* Juniper Junos
+
+### Deliverables
+
+* Vendor configuration generation
+* Bidirectional transpilation
+* Generator validation
+
+---
+
+## Stage 2.7 – Vendor Template Framework
+
+### Objectives
+
+Reduce hardcoded vendor syntax by introducing reusable vendor metadata.
+
+### Deliverables
+
+* Vendor templates
+* Generator abstraction
+* Foundation for future automated vendor onboarding
+
+---
+
+## Stage 2.8 – Bidirectional Transpilation Framework
+
+### Objectives
+
+Provide a unified transpilation engine capable of supporting multiple source and target vendors.
+
+### Deliverables
+
+* Parser registry
+* Generator registry
+* Vendor registry
+* Transpilation engine
+* Plugin framework
+
+---
+
+# Phase 3 – Configuration Analysis and Deployment
 
 ## Objective
 
-Provide deployment and comparison capabilities while evaluating project effectiveness.
+Expand ConfigBridge from a transpilation platform into a migration and deployment platform.
 
-## Components
+## Planned Features
 
 ### Configuration Comparison
 
-Compare configurations by converting them through the Intermediate Intent Model where possible.
+* Vendor-independent comparison
+* Configuration difference analysis
+* Migration reports
 
-Comparison examples:
-
-* Cisco IOS to Cisco IOS
-* Juniper Junos to Juniper Junos
-* Cisco IOS to Juniper Junos
-* Juniper Junos to Cisco IOS
-
-Comparison areas:
-
-* VLANs
-* Interfaces
-* Routing
-* NTP
-* SNMP
-* ACLs
-
-### Deployment Manager
-
-Responsibilities:
+### Deployment
 
 * Configuration deployment
-* Vendor-aware save operations
-* Juniper commit operations
-* Cisco save operations
+* Validation
+* Rollback support
+
+### Device Validation
+
 * Pre-deployment validation
-* Rollback preparation where possible
+* Post-deployment verification
 
-### Evaluation
+### Relationship Validation
 
-Measure:
-
-* Parsing success rate
-* Translation accuracy
-* Deployment success rate
-* Risk detection rate
-* User feedback
-* Multi-directional translation correctness
-
-## Deliverables
-
-### ConfigBridge v1.0
-
-Features:
-
-* Session manager
-* Translation engine
-* Intermediate Intent Model
-* Vendor framework
-* Comparison engine
-* Deployment manager
-* Evaluation report
-
-## Success Criteria
-
-* End-to-end workflow operational
-* Successful Cisco IOS to Juniper Junos translation
-* Successful Juniper Junos to Cisco IOS translation
-* Successful deployment in test environment
-* Successful semantic comparison through the Intermediate Intent Model
-* Positive user or expert evaluation
+* Interface verification
+* Relationship confirmation
+* Migration confidence reporting
 
 ---
 
-# Final Deliverable
+# Phase 4 – Future Research and Expansion
 
-ConfigBridge v1.0
+The following components remain outside the scope of the current implementation but represent future research opportunities.
 
-A desktop-based platform providing:
+## Automated Vendor Onboarding
 
-* Unified network access
-* Multi-vendor configuration transpilation
-* Intermediate Intent Model
-* Vendor abstraction framework
-* Configuration comparison
-* Risk-aware deployment
+Potential analysis of:
 
-The project will demonstrate how compiler-inspired techniques can be applied to multi-vendor network configuration management through the use of parsing, intermediate representations and vendor-specific configuration generation.
+* Vendor documentation
+* Command references
+* Configuration guides
+* Sample configurations
+* CLI help systems
+
+to generate vendor plugins automatically.
+
+---
+
+## Knowledge-Assisted Vendor Integration
+
+Future versions may investigate knowledge-assisted techniques to support:
+
+* grammar discovery;
+* vendor capability identification;
+* parser generation;
+* generator generation;
+* documentation analysis.
+
+Generated implementations would remain subject to deterministic validation before deployment.
+
+---
+
+## Advanced Relationship Analysis
+
+Future research may investigate:
+
+* confidence scoring;
+* topology awareness;
+* graph-based relationship modelling;
+* automated interface correspondence;
+* migration recommendation systems.
+
+---
+
+# Summary
+
+The phased implementation strategy validates each architectural layer independently before introducing additional complexity.
+
+This incremental methodology ensures that communication, discovery, relationship analysis, intent modelling and configuration generation remain independently testable while supporting future expansion without significant architectural redesign.

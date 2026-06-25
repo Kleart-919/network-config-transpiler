@@ -1,0 +1,102 @@
+"""
+Cisco Generator
+
+This module converts the vendor-neutral IntentModel into Cisco IOS
+configuration commands.
+
+Vendor syntax templates are loaded from the vendor template metadata layer.
+"""
+
+from configbridge.models.intent_model import IntentModel
+from configbridge.plugins.vendor_templates import VENDOR_TEMPLATES
+
+
+class CiscoGenerator:
+    """
+    Generates Cisco IOS configuration from the IntentModel.
+    """
+
+    def __init__(self):
+        self.templates = VENDOR_TEMPLATES["cisco_ios"]
+
+    def generate(self, intent: IntentModel) -> str:
+        lines = []
+
+        if intent.hostname:
+            lines.append(
+                self.templates["hostname"].format(hostname=intent.hostname)
+            )
+            lines.append("")
+
+        for vlan in intent.vlans:
+            lines.append(
+                self.templates["vlan"].format(vlan_id=vlan.vlan_id)
+            )
+
+            if vlan.name:
+                lines.append(
+                    self.templates["vlan_name"].format(vlan_name=vlan.name)
+                )
+
+        if intent.vlans:
+            lines.append("")
+
+        for interface in intent.interfaces:
+            cisco_interface = self.map_interface_name(interface.name)
+
+            lines.append(
+                self.templates["interface"].format(
+                    interface_name=cisco_interface
+                )
+            )
+
+            if interface.description:
+                lines.append(
+                    self.templates["interface_description"].format(
+                        description=interface.description
+                    )
+                )
+
+            if interface.mode == "access":
+                lines.append(self.templates["access_mode"])
+
+                if interface.access_vlan is not None:
+                    lines.append(
+                        self.templates["access_vlan"].format(
+                            vlan_id=interface.access_vlan
+                        )
+                    )
+
+            if interface.mode == "trunk":
+                lines.append(self.templates["trunk_mode"])
+
+                if interface.allowed_vlans:
+                    vlan_text = ",".join(
+                        str(vlan_id) for vlan_id in interface.allowed_vlans
+                    )
+                    lines.append(
+                        self.templates["allowed_vlans"].format(
+                            vlans=vlan_text
+                        )
+                    )
+
+            lines.append("")
+
+        return "\n".join(lines).strip() + "\n"
+
+    def map_interface_name(self, interface_name: str) -> str:
+        """
+        Convert a Juniper-style interface name into a basic Cisco-style name.
+
+        This is a temporary demonstration mapping for Phase 2.
+        Future versions should use an interface mapping layer.
+        """
+
+        if interface_name.startswith("ge-"):
+            numbers = interface_name.replace("ge-", "")
+            parts = numbers.split("/")
+
+            if len(parts) == 3:
+                return f"GigabitEthernet{parts[1]}/0/{parts[2]}"
+
+        return interface_name

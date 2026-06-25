@@ -1,222 +1,458 @@
-# ConfigBridge: A Multi-Vendor Network Configuration Transpiler and Unified Access Management Platform
+# Project Proposal
 
-**Student:** Kleart Sufa
-**Banner ID:** 001323960
-**Programme:** Computer Security and Forensics BSc (Hons) with Sandwich Year
-**Supervisor:** [Supervisor Placeholder]
-**Repository:** https://github.com/Kleart-919/network-config-transpiler
-**Submission date:** [Leave blank]
+## Project Title
 
-## Declaration of AI Use
+**ConfigBridge – A Discovery-Assisted Multi-Vendor Network Configuration Transpilation and Unified Network Access Platform**
 
-AI has been used to support project planning, outline development, concept explanation, language refinement, and early documentation drafting. All final decisions, implementation work, testing, evaluation, and submitted project artefacts remain the responsibility of the student.
+---
 
-## Synopsis
+## Student Details
 
-ConfigBridge is a proposed desktop-based network management platform that combines a Network Session Manager with a Configuration Transpilation Engine. The project investigates whether a unified network access platform can automate the translation and deployment of configurations across heterogeneous network environments. The prototype will initially focus on Cisco IOS and Juniper Junos, while maintaining an extensible architecture for vendors such as Cisco Nexus, Aruba, HP and Arista.
+**Student Name:** Kleart Sufa
 
-The system will support SSH and Telnet connectivity, configuration retrieval, pasted configuration input, parsing of vendor-specific syntax, generation of an Intermediate Intent Model, and rendering of equivalent configuration for a target vendor. The project will be evaluated through translation accuracy, parsing success rate, configuration generation correctness, deployment success rate, risk detection and expert review from users with networking experience.
+**Student ID:** 001323960
 
-**Keywords:** network automation, configuration transpiler, Cisco IOS, Juniper Junos, multi-vendor networks, SSH, Telnet, network management, configuration translation, cybersecurity
+**Programme:** BSc (Hons) Computer Security and Forensics (Sandwich)
 
-# 1. Aim and Objectives
+**Supervisor:** *To be confirmed*
 
-## 1.1 Aim
+---
 
-This project aims to design, implement and evaluate ConfigBridge, a desktop-based multi-vendor network access and configuration transpilation platform that can retrieve, parse, translate, compare and safely deploy network configurations across heterogeneous network environments.
+# 1. Introduction
 
-## 1.2 Objectives
+Enterprise networks increasingly operate heterogeneous infrastructures consisting of equipment from multiple vendors, including Cisco, Juniper, Aruba, Hewlett Packard Enterprise (HPE), Arista and Cisco Nexus platforms. These environments arise through phased hardware replacement, mergers, acquisitions, procurement strategies and differing technical requirements.
 
-### Objective 1: Conduct background research and requirements analysis
+Although these platforms implement many equivalent networking concepts, they expose those concepts through different command-line interfaces, configuration syntaxes and operational workflows. Consequently, engineers managing heterogeneous environments must either maintain expertise across multiple vendor ecosystems or organisations must invest in specialist recruitment, vendor-specific certification programmes and commercial multi-vendor management platforms.
 
-Activities:
+Configuration migration between vendors is frequently performed manually, requiring engineers to understand both the source and destination operating systems before rewriting configuration. This process is time-consuming, error-prone and difficult to scale as additional vendors are introduced.
 
-* Research multi-vendor network configuration challenges. [7 days]
-* Review existing network automation and configuration management tools. [7 days]
-* Identify functional and non-functional requirements. [5 days]
+ConfigBridge proposes a different architectural approach.
 
-Deliverables:
+Rather than translating vendor commands directly, the system discovers the connected device, constructs a vendor-neutral representation of network intent and generates equivalent configuration for the target platform using a layered software architecture.
 
-* Background research notes
-* Requirements specification
-* Product comparison table
+The objective is not to replace experienced network engineers but to reduce migration effort, improve accessibility within heterogeneous environments and support cost avoidance while preserving engineering control and validation.
 
-### Objective 2: Design the ConfigBridge system architecture
+---
 
-Activities:
+# 2. Problem Statement
 
-* Design the Network Session Manager. [5 days]
-* Design the Configuration Transpilation Engine. [7 days]
-* Design the Intermediate Intent Model. [7 days]
-* Design the Vendor Abstraction Framework. [7 days]
-* Create architecture and translation pipeline diagrams. [4 days]
+Current multi-vendor network administration presents both technical and organisational challenges.
 
-Deliverables:
+From a technical perspective, equivalent networking concepts are represented using different syntaxes, configuration structures and deployment workflows.
 
-* System architecture document
-* Component diagram
-* Translation pipeline diagram
-* Vendor plugin design
+Examples include:
 
-### Objective 3: Implement the Network Session Manager
+* Layer 2 interface configuration
+* VLAN management
+* Interface descriptions
+* Configuration deployment
+* Vendor-specific operational behaviour
 
-Activities:
+From an organisational perspective, heterogeneous environments often require organisations to:
 
-* Build a Python desktop interface using PySide6. [10 days]
-* Implement SSH connectivity. [7 days]
-* Implement Telnet connectivity. [7 days]
-* Add session logging and basic command execution. [5 days]
+* recruit engineers with expertise across multiple vendor ecosystems;
+* invest in vendor-specific training and certification programmes;
+* purchase commercial multi-vendor management platforms;
+* dedicate significant engineering effort to configuration migration; and
+* make infrastructure decisions based upon existing staff familiarity rather than technical suitability.
 
-Deliverables:
+While several commercial products provide multi-vendor management capabilities, these platforms are often proprietary, costly and primarily focused on orchestration rather than configuration transpilation.
 
-* Working desktop session manager
-* SSH and Telnet connection support
-* Session logs
+Furthermore, many existing approaches rely upon direct command mappings between vendors. Such approaches become increasingly difficult to maintain as the number of supported vendors increases.
 
-### Objective 4: Implement the Configuration Transpilation Engine
+This project investigates whether a discovery-assisted, intent-driven architecture can provide a more scalable foundation for multi-vendor configuration transpilation.
 
-Activities:
+---
 
-* Build initial Cisco IOS and Juniper Junos parsers. [15 days]
-* Generate an Abstract Syntax Tree from parsed configuration. [10 days]
-* Convert parsed configuration into an Intermediate Intent Model. [10 days]
-* Build Cisco IOS and Juniper Junos configuration generators. [15 days]
+# 3. Aim
 
-Deliverables:
+The aim of this project is to design and implement ConfigBridge, a discovery-assisted multi-vendor network configuration transpilation platform capable of understanding network configurations through a vendor-neutral intermediate representation while supporting interactive network administration through a unified network session manager.
 
-* Cisco IOS parser
-* Juniper Junos parser
-* AST representation
-* Intermediate Intent Model
-* Cisco IOS generator
-* Juniper Junos generator
-* Cisco IOS to Juniper Junos translation
-* Juniper Junos to Cisco IOS translation
+Unlike direct command translation systems, ConfigBridge first discovers the connected device, constructs an operational inventory, resolves relationships between network objects and subsequently generates vendor-specific configuration from a shared vendor-neutral intent model.
 
-### Objective 5: Implement vendor-aware safety, comparison and deployment features
+This architecture aims to improve extensibility while reducing dependence on vendor-specific implementation throughout the remainder of the system.
 
-Activities:
+---
 
-* Implement risky command detection. [7 days]
-* Add confirmation before dangerous commands are executed. [5 days]
-* Implement configuration comparison. [10 days]
-* Implement controlled deployment workflow. [10 days]
+# 4. Objectives
 
-Deliverables:
+The project objectives are:
 
-* Risk Assessment Engine
-* Configuration comparison feature
-* Controlled deployment workflow
+* Design and implement a unified Network Session Manager supporting SSH and Telnet connectivity.
+* Develop a Discovery Framework capable of analysing connected network devices.
+* Construct a Device Inventory representing operational device characteristics.
+* Design a Relationship Engine capable of resolving relationships between network objects.
+* Develop a Vendor-Neutral Intent Model representing network behaviour independently of vendor syntax.
+* Implement configuration parsers for Cisco IOS and Juniper Junos.
+* Implement configuration generators for Cisco IOS and Juniper Junos.
+* Demonstrate bidirectional configuration transpilation between Cisco IOS and Juniper Junos.
+* Design a plugin architecture supporting future vendor integration.
+* Investigate future automated vendor onboarding through vendor documentation and configuration knowledge extraction.
+# 5. Proposed Solution
 
-### Objective 6: Test and evaluate the prototype
+ConfigBridge proposes a layered software architecture that separates communication, discovery, relationship analysis, network intent and configuration generation into independent software components.
 
-Activities:
+The proposed workflow differs significantly from traditional command translation systems.
 
-* Test using sample configurations. [7 days]
-* Test using real Cisco and Juniper switches where available. [10 days]
-* Measure parsing success, translation accuracy and risk detection. [7 days]
-* Collect technical review feedback from network engineers or experienced users. [7 days]
+Instead of translating directly between vendor-specific commands, ConfigBridge performs a sequence of independent operations.
 
-Deliverables:
+```
+Network Session
 
-* Test results
-* Evaluation report
-* Final prototype demonstration
+↓
 
-# 2. Background Research and Project Rationale
+Device Discovery
 
-Enterprise networks often contain devices from multiple vendors. Although these devices support similar networking concepts, such as VLANs, trunk ports, access ports, static routes, management services and access control, the syntax and deployment behaviour can vary significantly between vendors.
+↓
 
-For example, Cisco IOS and Juniper Junos use different configuration styles and operational models. Cisco IOS typically applies configuration commands directly to the running configuration, whereas Juniper Junos uses a candidate configuration model that requires commit behaviour. This difference means that configuration migration is not simply a matter of replacing command words. It requires an understanding of configuration intent, vendor syntax, interface naming conventions and deployment behaviour.
+Device Inventory
 
-Beyond technical differences, multi-vendor environments introduce organisational and financial challenges. Organisations may limit infrastructure decisions based on existing staff expertise, invest in additional vendor-specific training, employ specialist personnel, or purchase commercial management platforms. These approaches can increase operational cost, extend migration timelines and contribute to vendor lock-in. Therefore, a system that improves configuration understanding and translation across vendors may support more flexible infrastructure decisions and reduce operational dependency on a narrow set of skills or platforms.
+↓
 
-Existing network automation tools can assist with device access, configuration retrieval and scripted automation. However, many tools do not directly address the problem of translating configuration intent between different vendor command-line environments. Manual translation remains common in migration or mixed-vendor environments, increasing the risk of human error and requiring specialist knowledge of multiple network operating systems.
+Relationship Analysis
 
-ConfigBridge does not seek to replace vendor expertise or existing enterprise management platforms. Instead, it aims to improve accessibility, reduce migration friction and lower the operational overhead associated with heterogeneous network environments. By combining a unified access platform with a configuration transpilation engine, the project seeks to assist engineers in understanding, translating, comparing and deploying configurations across different network operating systems while preserving vendor-specific behaviour where necessary.
+↓
 
-ConfigBridge addresses this problem by applying a transpiler-style approach. Instead of relying on static one-to-one command mappings, the system will parse vendor-specific configuration into an Abstract Syntax Tree, convert it into an Intermediate Intent Model, and then generate target vendor syntax. This approach is inspired by compiler design principles and applied to the network configuration domain.
+Vendor-Neutral Intent Model
 
-The project is relevant to Computer Security and Forensics because secure network infrastructure depends on accurate configuration, controlled administrative access, logging and risk-aware deployment. Incorrect network configuration can weaken segmentation, expose management services, misconfigure access controls or disrupt availability. A tool that helps interpret, compare and safely deploy configurations therefore has practical value in network security and infrastructure management.
+↓
 
-# 3. Methodology and Technical Approach
+Configuration Generation
+```
 
-The project will use a hybrid methodology combining Design Science Research and Iterative Prototyping.
+This separation enables vendor-specific syntax to remain isolated while the remainder of the system operates on vendor-neutral representations.
 
-Design Science Research is suitable because the project creates and evaluates an artefact intended to address a real technical problem. The artefact is ConfigBridge itself. The research question guiding the artefact is:
+The proposed architecture also supports future expansion through additional vendor plugins without requiring redesign of the core system.
 
-**Can a unified network access platform automate the translation and deployment of configurations across heterogeneous network environments?**
+---
 
-Iterative Prototyping is suitable because the project contains technical uncertainty. The parser, Intermediate Intent Model, generators and deployment workflow are likely to evolve as testing is carried out against sample configurations and real network devices. This makes an incremental approach more realistic than a fixed linear development model.
+# 6. System Design Overview
 
-The development will be organised into four major phases:
+The system consists of seven primary architectural components.
 
-1. Pre-phase: documentation, planning and GitHub setup.
-2. Phase 1: Network Session Manager.
-3. Phase 2: Configuration Transpilation Engine.
-4. Phase 3: Vendor Framework, safety, comparison and deployment.
-5. Phase 4: testing, evaluation and final reporting.
+### Network Session Manager
 
-The prototype will be developed in Python. PySide6 will be used for the desktop interface. Netmiko or Scrapli will be investigated for SSH and Telnet communication. Lark will be investigated for grammar-based parsing. SQLite may be used for local storage of device profiles and session history. Python comparison libraries such as difflib will be considered for configuration comparison.
+Provides interactive communication with network devices through SSH and Telnet.
 
-The first implementation will focus on Cisco IOS and Juniper Junos. The intended configuration scope includes hostnames, VLANs, access ports, trunk ports, interface descriptions, allowed VLANs, static routes, default routes, NTP, SNMP and investigation of ACL translation. Cisco Nexus, Aruba, HP and Arista will be considered as future vendor plugins.
+Responsibilities include:
 
-# 4. Evaluation Plan
+* session establishment;
+* interactive terminal communication;
+* session logging;
+* connection lifecycle management.
 
-The project will be evaluated using both quantitative and qualitative measures.
+Future versions may support Serial Console, NETCONF and REST APIs.
 
-The quantitative evaluation will include:
+---
 
-* Parsing success rate: percentage of supported configuration blocks parsed successfully.
-* Translation accuracy: percentage of generated target configuration lines judged correct.
-* Configuration generation correctness: whether rendered output follows target vendor syntax.
-* Deployment success rate: percentage of generated configurations successfully applied in a controlled test environment.
-* Risk detection success: percentage of dangerous commands correctly flagged before execution.
-* Multi-directional translation correctness: whether Cisco IOS to Juniper Junos and Juniper Junos to Cisco IOS workflows both produce valid output.
+### Discovery Framework
 
-The qualitative evaluation will include expert or user review where possible. Network engineers or users with practical switching experience may be asked to review generated configurations and comment on correctness, usefulness, usability and limitations.
+The Discovery Framework analyses connected devices before transpilation begins.
 
-Testing will use both sample configuration files and real Cisco and Juniper switches where available. The evaluation will acknowledge limitations, especially where certain commands or features are not fully supported in the first prototype.
+Rather than assuming hardware layouts or interface numbering, ConfigBridge collects operational information from the connected device.
 
-# 5. Legal, Social, Ethical and Professional Issues
+Typical discovery information includes:
 
-ConfigBridge interacts with network infrastructure and therefore must be designed responsibly. The tool should only be used on devices where the user has permission to connect, retrieve configuration and deploy changes.
+* running configuration;
+* interface status;
+* VLAN information;
+* LLDP/CDP neighbours;
+* operational interface characteristics.
 
-Credential handling is an important consideration. The prototype should avoid storing plaintext credentials where possible. If credentials are stored during development, this should be limited to local testing and documented clearly.
+The Discovery Framework constructs a Device Inventory representing the current state of the connected infrastructure.
 
-Session logs may contain sensitive information such as IP addresses, hostnames, usernames, configuration details and network topology. Therefore, logs should be treated as confidential data and excluded from public GitHub commits. The `.gitignore` file should prevent accidental upload of logs, secrets and environment files.
+---
 
-The project should comply with professional expectations for safe network administration. High-risk commands such as reload, erase, delete, write erase, shutdown and no interface should be detected before execution. The system should require explicit confirmation before such commands are sent to a device.
+### Device Inventory
 
-If user testing is conducted, participant consent and university ethics requirements should be followed. No unnecessary personal data should be collected.
+The Device Inventory represents operational knowledge rather than configuration intent.
 
-# 6. Risk Assessment
+It stores information such as:
 
-| Risk                                                   | Likelihood | Impact | Mitigation                                         |
-| ------------------------------------------------------ | ---------: | -----: | -------------------------------------------------- |
-| Vendor syntax is more complex than expected            |       High |   High | Limit prototype scope to selected command families |
-| ACL translation becomes too large                      |     Medium | Medium | Treat ACLs as investigatory or partial support     |
-| Real hardware availability changes                     |     Medium |   High | Maintain sample config files and simulated tests   |
-| SSH/Telnet libraries behave differently across devices |     Medium | Medium | Test early with Cisco and Juniper devices          |
-| Time constraints affect implementation                 |     Medium |   High | Use phased delivery and prioritise core features   |
-| Incorrect generated config could disrupt devices       |     Medium |   High | Use lab devices only and add risk confirmation     |
-| Credentials or logs are accidentally committed         |     Medium |   High | Use `.gitignore` and avoid real secrets in files   |
-| GUI development takes too long                         |     Medium | Medium | Keep the first interface simple and functional     |
+* hostname;
+* vendor;
+* interface inventory;
+* operational status;
+* interface descriptions;
+* VLAN membership;
+* neighbour information.
 
-# 7. Project Plan and Timeline
+Multiple inventories may exist simultaneously when migrating configurations between different devices.
 
-The planned project period is September 2026 to March 2027, with approximately 10 hours of work per week. This timeline may be adjusted when the final year schedule is confirmed.
+---
 
-| Period         | Activity                                          | Deliverable                                       |
-| -------------- | ------------------------------------------------- | ------------------------------------------------- |
-| September 2026 | Background research, requirements, product review | Research notes and requirements                   |
-| October 2026   | Architecture and design                           | Architecture diagrams and design document         |
-| November 2026  | Network Session Manager implementation            | SSH/Telnet prototype                              |
-| December 2026  | Parser and Intermediate Intent Model              | Cisco and Juniper parsers with internal model     |
-| January 2027   | Vendor generators and translation testing         | Cisco IOS and Juniper Junos translation prototype |
-| February 2027  | Safety, comparison and deployment workflow        | Risk engine and config comparison                 |
-| March 2027     | Evaluation, testing, final write-up               | Final prototype and report                        |
+### Relationship Engine
 
-# References
+The Relationship Engine is responsible for determining correspondence between network objects.
 
-References will be developed during the research phase using Harvard style. Initial sources will include academic and technical literature on network automation, compiler design, configuration management, secure network administration and vendor documentation.
+Unlike traditional migration tools, ConfigBridge does not assume that similarly numbered interfaces represent equivalent physical connections.
+
+Instead, relationships are inferred from discovered operational information.
+
+Examples include:
+
+* interface descriptions;
+* operational status;
+* VLAN membership;
+* LLDP/CDP neighbours;
+* interface speed;
+* link aggregation information.
+
+Future implementations may associate confidence values with inferred relationships before presenting them for engineer validation.
+
+---
+
+### Vendor-Neutral Intent Model
+
+The Intent Model represents network behaviour independently of vendor syntax.
+
+It stores networking concepts such as:
+
+* hostnames;
+* VLANs;
+* Layer 2 interface behaviour;
+* access ports;
+* trunk ports;
+* interface descriptions.
+
+Every parser produces the same Intent Model regardless of vendor.
+
+Every generator consumes the same Intent Model regardless of vendor.
+
+---
+
+### Configuration Parsers
+
+Vendor-specific parsers convert configuration syntax into the Vendor-Neutral Intent Model.
+
+Current implementation includes:
+
+* Cisco IOS Parser
+* Juniper Junos Parser
+
+Future versions will extend support to additional vendors including Cisco Nexus, Aruba, HP and Arista EOS.
+
+---
+
+### Configuration Generators
+
+Configuration generators convert the Vendor-Neutral Intent Model into vendor-specific configuration.
+
+Current implementation includes:
+
+* Cisco IOS Generator
+* Juniper Junos Generator
+
+Future generators will support additional vendors through the same plugin architecture.
+
+---
+
+# 7. Proposed Methodology
+
+The project follows a hybrid iterative software engineering methodology.
+
+Development is organised into incremental phases, with each phase producing a functional prototype while simultaneously refining the overall architecture.
+
+Rather than attempting to implement complete vendor support immediately, each iteration validates a subset of networking concepts before extending functionality.
+
+The implementation strategy consists of:
+
+**Phase 1**
+
+* Network Session Manager
+* SSH support
+* Telnet support
+* Interactive terminal
+* Session logging
+
+**Phase 2**
+
+* Discovery Framework
+* Device Inventory
+* Relationship Engine
+* Vendor-Neutral Intent Model
+* Cisco and Juniper parsers
+* Cisco and Juniper generators
+* Bidirectional transpilation pipeline
+
+**Phase 3**
+
+* Configuration comparison
+* Deployment framework
+* Validation mechanisms
+* Rollback support
+* Additional vendor integration
+
+This iterative approach reduces implementation risk while ensuring that architectural decisions are validated before significant feature expansion.
+
+---
+
+# 8. Technology Stack
+
+The current implementation uses Python due to its extensive networking ecosystem and rapid development capabilities.
+
+Primary technologies include:
+
+* Python 3
+* PySide6
+* Paramiko
+* Socket programming
+* Git
+* GitHub
+
+The application is currently implemented as a desktop application targeting Microsoft Windows.
+
+The architecture has been designed so that future API or web interfaces could be introduced without requiring significant redesign of the underlying transpilation framework.
+# 9. Expected Outcomes
+
+The primary outcome of this project is a functional proof-of-concept demonstrating that heterogeneous network configurations can be represented through a vendor-neutral intermediate model and regenerated for multiple network operating systems.
+
+The completed prototype is expected to provide:
+
+* A unified Network Session Manager supporting interactive SSH and Telnet connectivity.
+* A Discovery Framework capable of analysing connected network devices.
+* A Device Inventory representing the operational characteristics of discovered devices.
+* A Relationship Engine capable of resolving relationships between network objects across heterogeneous platforms.
+* A Vendor-Neutral Intent Model representing network behaviour independently of vendor syntax.
+* Cisco IOS configuration parsing.
+* Juniper Junos configuration parsing.
+* Cisco IOS configuration generation.
+* Juniper Junos configuration generation.
+* Bidirectional configuration transpilation between Cisco IOS and Juniper Junos.
+
+Beyond demonstrating successful transpilation, the project aims to validate the proposed software architecture as a scalable foundation for future multi-vendor network management.
+
+---
+
+# 10. Success Criteria
+
+The project will be considered successful if it demonstrates the following:
+
+### Network Session Manager
+
+* Successful SSH connectivity.
+* Successful Telnet connectivity.
+* Interactive terminal sessions.
+* Session logging.
+* Stable communication with physical network devices.
+
+### Discovery Framework
+
+* Successful collection of operational device information.
+* Construction of a Device Inventory representing the connected infrastructure.
+* Successful interface discovery from supported vendors.
+
+### Intent-Based Configuration Processing
+
+* Successful parsing of Cisco IOS configuration.
+* Successful parsing of Juniper Junos configuration.
+* Successful generation of Cisco IOS configuration from the Vendor-Neutral Intent Model.
+* Successful generation of Juniper Junos configuration from the Vendor-Neutral Intent Model.
+* Successful bidirectional transpilation between Cisco IOS and Juniper Junos.
+
+### Architecture
+
+* Clear separation between communication, discovery, relationship analysis, intent modelling and configuration generation.
+* Extensible plugin architecture capable of supporting future vendors.
+* Validation that vendor-specific syntax remains isolated from the remainder of the system.
+
+---
+
+# 11. Risks and Limitations
+
+Several technical challenges have been identified during the design process.
+
+### Vendor Diversity
+
+Different vendors implement equivalent networking concepts using significantly different configuration syntaxes and operational workflows.
+
+The current implementation therefore focuses on validating the architecture using a representative subset of Layer 2 networking concepts before extending support to more advanced technologies.
+
+---
+
+### Hardware Differences
+
+Different hardware platforms frequently expose different interface layouts, naming conventions and capabilities.
+
+Consequently, ConfigBridge avoids assuming that similarly numbered interfaces represent equivalent physical connections.
+
+Instead, future development will extend the Relationship Engine to infer relationships from discovered operational characteristics.
+
+---
+
+### Vendor-Specific Features
+
+Certain platform capabilities may not have direct equivalents on other vendors.
+
+In these situations, the project aims to preserve networking intent wherever possible while identifying vendor-specific functionality requiring manual review.
+
+---
+
+### Scope Management
+
+Supporting every networking feature across multiple vendors is beyond the scope of an undergraduate final-year project.
+
+The current implementation therefore focuses on validating the architectural approach rather than providing complete vendor coverage.
+
+---
+
+# 12. Project Timeline
+
+The proposed implementation schedule is:
+
+| Phase            | Activities                                                                                                      |
+| ---------------- | --------------------------------------------------------------------------------------------------------------- |
+| Phase 1          | Network Session Manager, SSH, Telnet, interactive terminal, logging                                             |
+| Phase 2          | Discovery Framework, Device Inventory, Relationship Engine, Intent Model, parsers, generators and transpilation |
+| Phase 3          | Configuration comparison, deployment framework, validation, rollback support and additional vendor integration  |
+| Final Evaluation | Testing, performance evaluation, documentation and dissertation preparation                                     |
+
+Development will follow an iterative approach, allowing architectural refinement throughout implementation.
+
+---
+
+# 13. Evaluation
+
+The completed prototype will be evaluated using both functional and architectural criteria.
+
+Functional evaluation will include:
+
+* successful communication with physical Cisco and Juniper devices;
+* successful parsing of representative configurations;
+* successful bidirectional configuration generation;
+* successful discovery of connected devices;
+* successful relationship resolution using discovered device information.
+
+Architectural evaluation will consider:
+
+* maintainability;
+* modularity;
+* extensibility;
+* scalability;
+* separation of concerns.
+
+The evaluation will also consider whether the proposed architecture provides a practical foundation for future vendor integration and automated vendor onboarding.
+
+---
+
+# 14. Ethical and Professional Considerations
+
+ConfigBridge is intended to assist qualified network engineers rather than replace professional judgement.
+
+Configuration transpilation and relationship inference should therefore be treated as engineering assistance rather than authoritative configuration generation.
+
+Future deployment workflows should include validation and approval before configurations are applied to production infrastructure.
+
+This approach supports responsible engineering practice while reducing operational risk.
+
+---
+
+# 15. Conclusion
+
+ConfigBridge proposes a discovery-assisted, intent-driven architecture for multi-vendor network configuration transpilation.
+
+By separating communication, discovery, relationship analysis, vendor-neutral intent and configuration generation into independent software components, the proposed architecture improves maintainability, scalability and future extensibility.
+
+The project aims to demonstrate that heterogeneous network configurations can be understood through a shared internal representation while reducing migration effort, improving accessibility and supporting cost avoidance within multi-vendor environments.
+
+The resulting architecture provides a strong foundation for future research into automated vendor onboarding, relationship inference and scalable heterogeneous network management.

@@ -1,5 +1,9 @@
 from datetime import datetime
 from pathlib import Path
+from configbridge.discovery.discovery_manager import DiscoveryManager
+from configbridge.discovery.discovery_profile import DiscoveryProfile
+from configbridge.parsers.juniper_discovery_parser import JuniperDiscoveryParser
+from configbridge.plugins.vendor_manifest import VendorManifest
 
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import (
@@ -25,6 +29,7 @@ class ConfigBridgeWindow(QMainWindow):
         super().__init__()
 
         self.session_manager = SessionManager()
+        self.discovery_manager = DiscoveryManager(self.session_manager)
         self.log_file_path = None
 
         self.setWindowTitle("ConfigBridge")
@@ -61,6 +66,9 @@ class ConfigBridgeWindow(QMainWindow):
         self.disconnect_button = QPushButton("Disconnect")
         self.disconnect_button.clicked.connect(self.handle_disconnect_clicked)
 
+        self.discover_button = QPushButton("Discover Device")
+        self.discover_button.clicked.connect(self.handle_discover_clicked)
+
         self.status_label = QLabel("Status: Disconnected")
 
         self.terminal = TerminalWidget(
@@ -83,6 +91,7 @@ class ConfigBridgeWindow(QMainWindow):
         connection_layout.addWidget(self.password_input)
         connection_layout.addWidget(self.connect_button)
         connection_layout.addWidget(self.disconnect_button)
+        connection_layout.addWidget(self.discover_button)
 
         main_layout.addLayout(connection_layout)
         main_layout.addWidget(self.status_label)
@@ -192,3 +201,29 @@ class ConfigBridgeWindow(QMainWindow):
 
         if output:
             self.terminal.write_output(output)
+
+    def handle_discover_clicked(self):
+
+        profile = DiscoveryProfile(
+            vendor_name="Juniper Junos",
+            commands={
+                "interfaces": "show interfaces terse",
+            },
+        )
+
+        manifest = VendorManifest(
+            name="Juniper Junos",
+            discovery_profile=profile,
+            discovery_parser=JuniperDiscoveryParser(),
+            configuration_parser=None,
+            configuration_generator=None,
+        )
+
+        inventory = self.discovery_manager.discover(
+            vendor=manifest,
+            hostname=self.host_input.text().strip(),
+        )
+
+        self.terminal.write_output("\n===== DEVICE INVENTORY =====\n")
+        self.terminal.write_output(str(inventory.to_dict()))
+        self.terminal.write_output("\n============================\n")

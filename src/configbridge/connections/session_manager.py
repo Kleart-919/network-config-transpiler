@@ -78,3 +78,12 @@ class SessionManager:
             return ""
 
         return self.connection.read()
+    def execute_command(self, command: str) -> str:
+        """
+        Execute one command through the active connection.
+        """
+
+        if self.connection is None:
+            return ""
+
+        return self.connection.execute_command(command)
