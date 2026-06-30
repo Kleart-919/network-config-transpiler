@@ -2,6 +2,8 @@
 Juniper runtime generator.
 """
 
+import re
+
 from configbridge.models.device_inventory import DeviceInventory
 from configbridge.runtime.runtime_command import RuntimeCommand
 
@@ -28,7 +30,7 @@ class RuntimeGenerator:
 
         if (
             command.verb == "show"
-            and command.resource == "interfaces"
+            and command.resource in ("interfaces", "interface")
             and command.qualifier == "status"
         ):
             return "show interfaces terse"
@@ -55,14 +57,31 @@ class RuntimeGenerator:
     def resolve_interface(self, name_or_alias: str) -> str:
         """
         Resolve preferred CLI interface name to real device interface name.
+        Inventory lookup is preferred. Fallback supports common Cisco syntax.
         """
 
-        if self.inventory is None:
-            return name_or_alias
+        if self.inventory is not None:
+            interface = self.inventory.find_interface(name_or_alias)
 
-        interface = self.inventory.find_interface(name_or_alias)
+            if interface is not None:
+                return interface.name
 
-        if interface is None:
-            return name_or_alias
+        return self._fallback_cisco_to_juniper(name_or_alias)
 
-        return interface.name
+    def _fallback_cisco_to_juniper(self, interface: str) -> str:
+        """
+        Fallback only when inventory has not resolved the interface.
+        """
+
+        value = interface.strip()
+
+        match = re.match(
+            r"^(gigabitethernet|gi)(\d+)/(\d+)/(\d+)$",
+            value,
+            re.IGNORECASE,
+        )
+
+        if match:
+            return f"ge-{match.group(2)}/{match.group(3)}/{match.group(4)}"
+
+        return value

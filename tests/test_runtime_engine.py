@@ -24,8 +24,12 @@ engine.set_inventory(inventory)
 
 commands = [
     "configure terminal",
+    "conf t",
     "interface GigabitEthernet0/0/1",
+    "interface gigabitethernet0/0/1",
+    "int gi0/0/1",
     "show interfaces status",
+    "show interface status",
     "show vlan brief",
 ]
 
