@@ -7,9 +7,6 @@ from dataclasses import dataclass, field
 
 @dataclass(slots=True)
 class RuntimeCommand:
-    """
-    Represents a runtime CLI command.
-    """
 
     verb: str
 
@@ -18,3 +15,5 @@ class RuntimeCommand:
     qualifier: str | None = None
 
     arguments: list[str] = field(default_factory=list)
+
+    configuration_mode: bool = False

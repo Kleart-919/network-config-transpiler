@@ -6,6 +6,13 @@ from configbridge.models.device_inventory import DeviceInventory
 from configbridge.runtime.runtime_parser import RuntimeParser
 from configbridge.runtime.runtime_registry import RuntimeRegistry
 
+from configbridge.runtime.juniper_output_parser import (
+    JuniperOutputParser,
+)
+from configbridge.runtime.cisco_output_generator import (
+    CiscoOutputGenerator,
+)
+
 
 class RuntimeEngine:
 
@@ -16,6 +23,10 @@ class RuntimeEngine:
         self.registry = RuntimeRegistry()
 
         self.inventory = None
+
+        self.output_parser = JuniperOutputParser()
+
+        self.output_generator = CiscoOutputGenerator()
 
     def set_inventory(
         self,
@@ -43,3 +54,12 @@ class RuntimeEngine:
         )
 
         return generator.generate(runtime)
+
+    def virtualize_output(
+        self,
+        text: str,
+    ) -> str:
+
+        runtime = self.output_parser.parse(text)
+
+        return self.output_generator.generate(runtime)

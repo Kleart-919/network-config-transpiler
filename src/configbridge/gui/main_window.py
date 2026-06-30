@@ -213,8 +213,13 @@ class ConfigBridgeWindow(QMainWindow):
     def read_from_session(self):
         output = self.session_manager.read()
 
-        if output:
-            self.terminal.write_output(output)
+        if not output:
+            return
+
+        active_widget = self.terminal_tabs.currentWidget()
+
+        if hasattr(active_widget, "write_output"):
+            active_widget.write_output(output)
 
     def handle_discover_clicked(self):
 
@@ -237,6 +242,9 @@ class ConfigBridgeWindow(QMainWindow):
             vendor=manifest,
             hostname=self.host_input.text().strip(),
         )
+        
+        self.virtual_cli.runtime.set_inventory(inventory)
+        self.virtual_cli.connected_vendor = inventory.vendor
 
         self.terminal.write_output("\n===== DEVICE INVENTORY =====\n")
         self.terminal.write_output(str(inventory.to_dict()))
