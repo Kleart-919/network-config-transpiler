@@ -4,7 +4,8 @@ from configbridge.discovery.discovery_manager import DiscoveryManager
 from configbridge.discovery.discovery_profile import DiscoveryProfile
 from configbridge.parsers.juniper_discovery_parser import JuniperDiscoveryParser
 from configbridge.plugins.vendor_manifest import VendorManifest
-
+from PySide6.QtWidgets import QTabWidget
+from configbridge.gui.virtual_cli_widget import VirtualCLIWidget
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import (
     QComboBox,
@@ -76,6 +77,15 @@ class ConfigBridgeWindow(QMainWindow):
             log_callback=self.write_session_log,
         )
 
+        self.virtual_cli = VirtualCLIWidget(
+            self.session_manager,
+            log_callback=self.write_session_log,
+        )
+
+        self.terminal_tabs = QTabWidget()
+        self.terminal_tabs.addTab(self.terminal, "Native Terminal")
+        self.terminal_tabs.addTab(self.virtual_cli, "Virtual CLI")
+
         main_layout = QVBoxLayout()
 
         connection_layout = QHBoxLayout()
@@ -95,7 +105,7 @@ class ConfigBridgeWindow(QMainWindow):
 
         main_layout.addLayout(connection_layout)
         main_layout.addWidget(self.status_label)
-        main_layout.addWidget(self.terminal)
+        main_layout.addWidget(self.terminal_tabs)
 
         container = QWidget()
         container.setLayout(main_layout)
@@ -185,7 +195,11 @@ class ConfigBridgeWindow(QMainWindow):
             self.status_label.setText(
                 f"Status: Connected | {protocol} | {cli_mode} | {host}"
             )
+            self.virtual_cli.runtime.parser_cli_mode = cli_mode
             self.write_session_log("\n[ConfigBridge] Connection successful.\n")
+        self.virtual_cli.write_output(
+            f"[ConfigBridge] Connected to {host} using {protocol}.\n"
+        )
 
     def handle_disconnect_clicked(self):
         message = self.session_manager.disconnect()
