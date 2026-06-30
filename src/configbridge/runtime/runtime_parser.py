@@ -1,7 +1,5 @@
 """
-Cisco runtime parser.
-
-Parses user CLI into RuntimeCommand.
+Generic runtime parser.
 """
 
 from configbridge.runtime.runtime_command import RuntimeCommand
@@ -11,57 +9,28 @@ class RuntimeParser:
 
     def parse(self, command: str) -> RuntimeCommand | None:
 
-        tokens = command.strip().split()
+        tokens = command.lower().strip().split()
 
-        if not tokens:
+        if len(tokens) < 2:
             return None
 
-        #
-        # show version
-        #
+        verb = tokens[0]
 
-        if tokens == ["show", "version"]:
+        resource = tokens[1]
 
-            return RuntimeCommand(
+        qualifier = None
 
-                action="show",
+        arguments = []
 
-                resource="system",
+        if len(tokens) >= 3:
+            qualifier = tokens[2]
 
-                operation="version",
+        if len(tokens) > 3:
+            arguments = tokens[3:]
 
-            )
-
-        #
-        # show interfaces status
-        #
-
-        if tokens == ["show", "interfaces", "status"]:
-
-            return RuntimeCommand(
-
-                action="show",
-
-                resource="interfaces",
-
-                operation="status",
-
-            )
-
-        #
-        # show vlan brief
-        #
-
-        if tokens == ["show", "vlan", "brief"]:
-
-            return RuntimeCommand(
-
-                action="show",
-
-                resource="vlans",
-
-                operation="brief",
-
-            )
-
-        return None
+        return RuntimeCommand(
+            verb=verb,
+            resource=resource,
+            qualifier=qualifier,
+            arguments=arguments,
+        )

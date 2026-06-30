@@ -14,9 +14,8 @@ class RuntimeGenerator:
         #
 
         if (
-            command.action == "show"
-            and command.resource == "system"
-            and command.operation == "version"
+            command.verb == "show"
+            and command.resource == "version"
         ):
             return "show version"
 
@@ -25,9 +24,9 @@ class RuntimeGenerator:
         #
 
         if (
-            command.action == "show"
+            command.verb == "show"
             and command.resource == "interfaces"
-            and command.operation == "status"
+            and command.qualifier == "status"
         ):
             return "show interfaces terse"
 
@@ -36,10 +35,20 @@ class RuntimeGenerator:
         #
 
         if (
-            command.action == "show"
-            and command.resource == "vlans"
-            and command.operation == "brief"
+            command.verb == "show"
+            and command.resource == "vlan"
+            and command.qualifier == "brief"
         ):
             return "show vlans"
 
-        return ""
+        return " ".join(
+            filter(
+                None,
+                [
+                    command.verb,
+                    command.resource,
+                    command.qualifier,
+                    *command.arguments,
+                ],
+            )
+        )
