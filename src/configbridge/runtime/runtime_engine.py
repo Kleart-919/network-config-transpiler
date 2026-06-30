@@ -4,22 +4,42 @@ Runtime CLI engine.
 
 from configbridge.models.device_inventory import DeviceInventory
 from configbridge.runtime.runtime_parser import RuntimeParser
-from configbridge.runtime.runtime_generator import RuntimeGenerator
+from configbridge.runtime.runtime_registry import RuntimeRegistry
 
 
 class RuntimeEngine:
 
     def __init__(self):
+
         self.parser = RuntimeParser()
-        self.generator = RuntimeGenerator()
 
-    def set_inventory(self, inventory: DeviceInventory):
-        self.generator.set_inventory(inventory)
+        self.registry = RuntimeRegistry()
 
-    def translate(self, command: str) -> str:
+        self.inventory = None
+
+    def set_inventory(
+        self,
+        inventory: DeviceInventory,
+    ):
+
+        self.inventory = inventory
+
+    def translate(
+        self,
+        command: str,
+    ) -> str:
+
         runtime = self.parser.parse(command)
 
         if runtime is None:
             return command
 
-        return self.generator.generate(runtime)
+        generator = self.registry.get_generator(
+            self.inventory.vendor
+        )
+
+        generator.set_inventory(
+            self.inventory
+        )
+
+        return generator.generate(runtime)
