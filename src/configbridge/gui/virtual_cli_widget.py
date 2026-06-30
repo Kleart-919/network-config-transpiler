@@ -6,7 +6,7 @@ from PySide6.QtWidgets import (
 )
 
 from PySide6.QtGui import QTextCursor
-
+from configbridge.runtime.output_virtualizer import OutputVirtualizer
 from configbridge.runtime.runtime_engine import RuntimeEngine
 
 
@@ -25,6 +25,10 @@ class VirtualCLIWidget(QWidget):
         self.log_callback = log_callback
 
         self.runtime = RuntimeEngine()
+
+        self.output_virtualizer = OutputVirtualizer()
+        self.cli_mode = "Cisco IOS"
+        self.connected_vendor = "Juniper Junos"
 
         self.output = QPlainTextEdit()
         self.output.setReadOnly(True)
@@ -63,15 +67,20 @@ class VirtualCLIWidget(QWidget):
 
     def write_output(self, text):
 
+        if not text:
+            return
+
+        text = self.output_virtualizer.virtualize(
+            text=text,
+            cli_mode=self.cli_mode,
+            connected_vendor=self.connected_vendor,
+        )
+
         if self.log_callback:
             self.log_callback(text)
 
         cursor = self.output.textCursor()
-
         cursor.movePosition(QTextCursor.End)
-
         cursor.insertText(text)
-
         self.output.setTextCursor(cursor)
-
         self.output.ensureCursorVisible()
