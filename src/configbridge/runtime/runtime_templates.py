@@ -18,7 +18,7 @@ RUNTIME_TEMPLATES = {
 
         "interface.description": 'set description "{value}"',
 
-        "interface.shutdown": "disable",
+        "interface.shutdown": "set disable",
 
         "interface.no_shutdown": "delete disable",
 
@@ -31,6 +31,7 @@ RUNTIME_TEMPLATES = {
         ),
 
         "interface.switchport.access.vlan": (
+            "delete unit 0 family ethernet-switching vlan\n"
             "set unit 0 family ethernet-switching vlan members {vlan}"
         ),
 
