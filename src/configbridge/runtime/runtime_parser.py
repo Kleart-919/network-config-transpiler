@@ -1,50 +1,99 @@
 """
-Generic runtime parser.
+Grammar-based runtime parser.
 """
 
+from configbridge.runtime.grammar.grammar_loader import (
+    GrammarLoader,
+)
 from configbridge.runtime.runtime_command import RuntimeCommand
 
 
 class RuntimeParser:
 
-    def parse(self, command: str) -> RuntimeCommand | None:
-        command = command.strip()
+    def __init__(self):
 
-        if not command:
+        self.loader = GrammarLoader()
+
+        self.grammar = self.loader.load(
+            "Cisco IOS"
+        )
+
+        self.mode = "exec"
+
+    def parse(
+        self,
+        command: str,
+    ) -> RuntimeCommand | None:
+
+        tokens = command.strip().split()
+
+        if not tokens:
             return None
 
-        lowered = command.lower()
+        node = self.grammar["modes"][self.mode]["commands"]
 
-        if lowered in ("configure terminal", "conf t", "configure"):
-            return RuntimeCommand(
-                verb="configure",
-                resource="terminal",
-                configuration_mode=True,
+        runtime = None
+
+        consumed = []
+
+        for token in tokens:
+
+            key = self.expand_token(
+                token,
+                node,
             )
 
-        if lowered.startswith("interface ") or lowered.startswith("int "):
-            interface = command.split(maxsplit=1)[1]
+            if key is None:
+                break
 
-            return RuntimeCommand(
-                verb="interface",
-                resource="interface",
-                arguments=[interface],
-                configuration_mode=True,
-            )
+            consumed.append(key)
 
-        tokens = lowered.split()
+            node = node[key]
 
-        if len(tokens) < 2:
+            if "runtime" in node:
+                runtime = node["runtime"]
+
+            if "children" in node:
+                node = node["children"]
+
+        if runtime is None:
             return None
 
-        verb = tokens[0]
-        resource = tokens[1]
-        qualifier = tokens[2] if len(tokens) >= 3 else None
-        arguments = tokens[3:] if len(tokens) > 3 else []
+        parts = runtime.split(".")
 
         return RuntimeCommand(
-            verb=verb,
-            resource=resource,
-            qualifier=qualifier,
-            arguments=arguments,
+
+            verb=parts[0],
+
+            resource=parts[1],
+
+            qualifier=parts[2] if len(parts) > 2 else None,
+
+            arguments=tokens[len(consumed):],
+
         )
+
+    def expand_token(
+        self,
+        token,
+        node,
+    ):
+
+        token = token.lower()
+
+        matches = []
+
+        for command in node:
+
+            minimum = node[command]["minimum"]
+
+            if (
+                command.startswith(token)
+                and len(token) >= len(minimum)
+            ):
+                matches.append(command)
+
+        if len(matches) != 1:
+            return None
+
+        return matches[0]

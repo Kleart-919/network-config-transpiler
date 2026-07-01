@@ -15,6 +15,7 @@ inventory = DeviceInventory(
             aliases=[
                 "GigabitEthernet0/0/1",
                 "Gi0/0/1",
+                "gi0/0/1",
             ],
         )
     ],
@@ -23,18 +24,27 @@ inventory = DeviceInventory(
 engine.set_inventory(inventory)
 
 commands = [
-    "configure terminal",
-    "conf t",
-    "interface GigabitEthernet0/0/1",
-    "interface gigabitethernet0/0/1",
-    "int gi0/0/1",
+
+    "sho interfaces stat",
+
     "show interfaces status",
-    "show interface status",
-    "show vlan brief",
+
+    "conf t",
+
+    "configure terminal",
+
+    "show vlan br",
+
+    "show ver",
+
 ]
 
 for command in commands:
+
     print()
+
     print(command)
+
     print("↓")
+
     print(engine.translate(command))
