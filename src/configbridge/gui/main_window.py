@@ -1,12 +1,7 @@
 from datetime import datetime
 from pathlib import Path
-from configbridge.discovery.discovery_manager import DiscoveryManager
-from configbridge.discovery.discovery_profile import DiscoveryProfile
-from configbridge.parsers.juniper_discovery_parser import JuniperDiscoveryParser
-from configbridge.plugins.vendor_manifest import VendorManifest
-from PySide6.QtWidgets import QTabWidget
-from configbridge.gui.virtual_cli_widget import VirtualCLIWidget
-from PySide6.QtCore import QTimer
+
+from PySide6.QtCore import QObject, QThread, QTimer, Signal
 from PySide6.QtWidgets import (
     QComboBox,
     QHBoxLayout,
@@ -14,24 +9,50 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QMainWindow,
     QPushButton,
+    QTabWidget,
     QVBoxLayout,
     QWidget,
 )
 
 from configbridge.connections.session_manager import SessionManager
+from configbridge.discovery.discovery_manager import DiscoveryManager
+from configbridge.discovery.discovery_profile import DiscoveryProfile
 from configbridge.gui.terminal_widget import TerminalWidget
+from configbridge.gui.virtual_cli_widget import VirtualCLIWidget
+from configbridge.parsers.juniper_discovery_parser import JuniperDiscoveryParser
+from configbridge.plugins.vendor_manifest import VendorManifest
+
+
+class DiscoveryWorker(QObject):
+    finished = Signal(object)
+    failed = Signal(str)
+
+    def __init__(self, discovery_manager, vendor, hostname):
+        super().__init__()
+        self.discovery_manager = discovery_manager
+        self.vendor = vendor
+        self.hostname = hostname
+
+    def run(self):
+        try:
+            inventory = self.discovery_manager.discover(
+                vendor=self.vendor,
+                hostname=self.hostname,
+            )
+            self.finished.emit(inventory)
+        except Exception as error:
+            self.failed.emit(str(error))
+
 
 class ConfigBridgeWindow(QMainWindow):
-    """
-    Main ConfigBridge application window.
-    """
-
     def __init__(self):
         super().__init__()
 
         self.session_manager = SessionManager()
         self.discovery_manager = DiscoveryManager(self.session_manager)
         self.log_file_path = None
+        self.discovery_thread = None
+        self.discovery_worker = None
 
         self.setWindowTitle("ConfigBridge")
         self.setMinimumSize(1000, 600)
@@ -69,6 +90,7 @@ class ConfigBridgeWindow(QMainWindow):
 
         self.discover_button = QPushButton("Discover Device")
         self.discover_button.clicked.connect(self.handle_discover_clicked)
+        self.discover_button.setEnabled(False)
 
         self.status_label = QLabel("Status: Disconnected")
 
@@ -116,10 +138,6 @@ class ConfigBridgeWindow(QMainWindow):
         self.read_timer.start(100)
 
     def start_session_log(self, host: str, protocol: str, cli_mode: str):
-        """
-        Create a new log file for the current session.
-        """
-
         logs_dir = Path("logs")
         logs_dir.mkdir(exist_ok=True)
 
@@ -137,10 +155,6 @@ class ConfigBridgeWindow(QMainWindow):
         self.write_session_log("=" * 70 + "\n\n")
 
     def write_session_log(self, text: str):
-        """
-        Append text to the current session log file.
-        """
-
         if self.log_file_path is None:
             return
 
@@ -164,13 +178,11 @@ class ConfigBridgeWindow(QMainWindow):
             )
             return
 
-        self.start_session_log(
-            host=host,
-            protocol=protocol,
-            cli_mode=cli_mode,
-        )
+        self.start_session_log(host, protocol, cli_mode)
 
-        self.status_label.setText(f"Status: Connecting | {protocol} | {cli_mode} | {host}")
+        self.status_label.setText(
+            f"Status: Connecting | {protocol} | {cli_mode} | {host}"
+        )
 
         self.terminal.write_output(
             f"\n[ConfigBridge] Connecting to {host} using {protocol} "
@@ -190,21 +202,27 @@ class ConfigBridgeWindow(QMainWindow):
 
         if message.startswith("ERROR"):
             self.status_label.setText("Status: Disconnected")
+            self.discover_button.setEnabled(False)
             self.write_session_log(f"\n[ConfigBridge] Connection failed: {message}\n")
-        else:
-            self.status_label.setText(
-                f"Status: Connected | {protocol} | {cli_mode} | {host}"
-            )
-            self.virtual_cli.runtime.parser_cli_mode = cli_mode
-            self.write_session_log("\n[ConfigBridge] Connection successful.\n")
+            return
+
+        self.status_label.setText(
+            f"Status: Connected | {protocol} | {cli_mode} | {host}"
+        )
+
+        self.discover_button.setEnabled(True)
+
         self.virtual_cli.write_output(
             f"[ConfigBridge] Connected to {host} using {protocol}.\n"
         )
+
+        self.write_session_log("\n[ConfigBridge] Connection successful.\n")
 
     def handle_disconnect_clicked(self):
         message = self.session_manager.disconnect()
 
         self.status_label.setText("Status: Disconnected")
+        self.discover_button.setEnabled(False)
 
         self.terminal.write_output(f"\n[ConfigBridge] {message}\n")
         self.write_session_log(f"\n[ConfigBridge] {message}\n")
@@ -222,11 +240,19 @@ class ConfigBridgeWindow(QMainWindow):
             active_widget.write_output(output)
 
     def handle_discover_clicked(self):
+        if not self.session_manager.is_connected():
+            self.terminal.write_output(
+                "\n[ConfigBridge] ERROR: Connect to a device before discovery.\n"
+            )
+            return
+
+        self.discover_button.setEnabled(False)
+        self.status_label.setText("Status: Discovering device...")
 
         profile = DiscoveryProfile(
             vendor_name="Juniper Junos",
             commands={
-                "interfaces": "show interfaces terse",
+                "interfaces": "show interfaces terse | no-more",
             },
         )
 
@@ -238,14 +264,44 @@ class ConfigBridgeWindow(QMainWindow):
             configuration_generator=None,
         )
 
-        inventory = self.discovery_manager.discover(
-            vendor=manifest,
-            hostname=self.host_input.text().strip(),
+        self.discovery_thread = QThread()
+        self.discovery_worker = DiscoveryWorker(
+            self.discovery_manager,
+            manifest,
+            self.host_input.text().strip(),
         )
-        
+
+        self.discovery_worker.moveToThread(self.discovery_thread)
+
+        self.discovery_thread.started.connect(self.discovery_worker.run)
+        self.discovery_worker.finished.connect(self.handle_discovery_finished)
+        self.discovery_worker.failed.connect(self.handle_discovery_failed)
+
+        self.discovery_worker.finished.connect(self.discovery_thread.quit)
+        self.discovery_worker.failed.connect(self.discovery_thread.quit)
+
+        self.discovery_thread.finished.connect(self.discovery_thread.deleteLater)
+
+        self.discovery_thread.start()
+
+    def handle_discovery_finished(self, inventory):
         self.virtual_cli.runtime.set_inventory(inventory)
         self.virtual_cli.connected_vendor = inventory.vendor
 
-        self.terminal.write_output("\n===== DEVICE INVENTORY =====\n")
-        self.terminal.write_output(str(inventory.to_dict()))
-        self.terminal.write_output("\n============================\n")
+        self.virtual_cli.write_output(
+            f"\n[ConfigBridge] Discovery loaded {len(inventory.interfaces)} interfaces.\n"
+        )
+
+        self.status_label.setText(
+            f"Status: Discovery complete | {len(inventory.interfaces)} interfaces"
+        )
+
+        self.discover_button.setEnabled(True)
+
+    def handle_discovery_failed(self, error):
+        self.terminal.write_output(
+            f"\n[ConfigBridge] Discovery failed: {error}\n"
+        )
+
+        self.status_label.setText("Status: Discovery failed")
+        self.discover_button.setEnabled(True)
