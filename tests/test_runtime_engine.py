@@ -24,27 +24,18 @@ inventory = DeviceInventory(
 engine.set_inventory(inventory)
 
 commands = [
-
-    "sho interfaces stat",
-
-    "show interfaces status",
-
-    "conf t",
-
     "configure terminal",
-
-    "show vlan br",
-
-    "show ver",
-
+    "interface GigabitEthernet0/0/1",
+    "description Uplink to Core",
+    "shutdown",
+    "no shutdown",
+    "switchport mode access",
+    "switchport access vlan 10",
+    "end",
 ]
 
 for command in commands:
-
     print()
-
     print(command)
-
     print("↓")
-
     print(engine.translate(command))

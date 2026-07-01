@@ -2,52 +2,37 @@
 Grammar-based runtime parser.
 """
 
-from configbridge.runtime.grammar.grammar_loader import (
-    GrammarLoader,
-)
+from configbridge.runtime.grammar.grammar_loader import GrammarLoader
 from configbridge.runtime.runtime_command import RuntimeCommand
 
 
 class RuntimeParser:
 
     def __init__(self):
-
         self.loader = GrammarLoader()
-
-        self.grammar = self.loader.load(
-            "Cisco IOS"
-        )
-
+        self.grammar = self.loader.load("Cisco IOS")
         self.mode = "exec"
 
-    def parse(
-        self,
-        command: str,
-    ) -> RuntimeCommand | None:
+    def set_mode(self, mode: str):
+        self.mode = mode
 
+    def parse(self, command: str) -> RuntimeCommand | None:
         tokens = command.strip().split()
 
         if not tokens:
             return None
 
         node = self.grammar["modes"][self.mode]["commands"]
-
         runtime = None
-
-        consumed = []
+        consumed_count = 0
 
         for token in tokens:
-
-            key = self.expand_token(
-                token,
-                node,
-            )
+            key = self.expand_token(token, node)
 
             if key is None:
                 break
 
-            consumed.append(key)
-
+            consumed_count += 1
             node = node[key]
 
             if "runtime" in node:
@@ -55,43 +40,44 @@ class RuntimeParser:
 
             if "children" in node:
                 node = node["children"]
+            else:
+                break
 
         if runtime is None:
             return None
 
-        parts = runtime.split(".")
+        arguments = tokens[consumed_count:]
+
+        mode_change = None
+
+        if runtime == "configure.terminal":
+            mode_change = "config"
+
+        elif runtime == "interface.enter":
+            mode_change = "interface"
+
+        elif runtime == "mode.exit":
+            mode_change = "config"
+
+        elif runtime == "mode.end":
+            mode_change = "exec"
 
         return RuntimeCommand(
-
-            verb=parts[0],
-
-            resource=parts[1],
-
-            qualifier=parts[2] if len(parts) > 2 else None,
-
-            arguments=tokens[len(consumed):],
-
+            operation=runtime,
+            arguments=arguments,
+            mode_change=mode_change,
         )
 
-    def expand_token(
-        self,
-        token,
-        node,
-    ):
-
+    def expand_token(self, token, node):
         token = token.lower()
-
         matches = []
 
         for command in node:
+            command_text = str(command)
+            minimum = str(node[command]["minimum"])
 
-            minimum = node[command]["minimum"]
-
-            if (
-                command.startswith(token)
-                and len(token) >= len(minimum)
-            ):
-                matches.append(command)
+            if command_text.startswith(token) and len(token) >= len(minimum):
+                matches.append(command_text)
 
         if len(matches) != 1:
             return None

@@ -63,3 +63,79 @@ modes:
         minimum: int
 
         runtime: interface.enter
+
+  interface:
+
+    commands:
+
+      description:
+
+        minimum: desc
+
+        runtime: interface.description
+
+      shutdown:
+
+        minimum: shu
+
+        runtime: interface.shutdown
+
+      "no":
+
+        minimum: "no"
+
+        children:
+
+          shutdown:
+
+            minimum: shu
+
+            runtime: interface.no_shutdown
+
+      switchport:
+
+        minimum: switch
+
+        children:
+
+          mode:
+
+            minimum: mode
+
+            children:
+
+              access:
+
+                minimum: access
+
+                runtime: interface.switchport.mode.access
+
+              trunk:
+
+                minimum: trunk
+
+                runtime: interface.switchport.mode.trunk
+
+          access:
+
+            minimum: access
+
+            children:
+
+              vlan:
+
+                minimum: vlan
+
+                runtime: interface.switchport.access.vlan
+
+      exit:
+
+        minimum: exit
+
+        runtime: mode.exit
+
+      end:
+
+        minimum: end
+
+        runtime: mode.end
