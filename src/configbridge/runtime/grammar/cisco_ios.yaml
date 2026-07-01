@@ -1,0 +1,65 @@
+vendor: Cisco IOS
+
+modes:
+
+  exec:
+
+    commands:
+
+      show:
+
+        minimum: sho
+
+        children:
+
+          interfaces:
+
+            minimum: int
+
+            children:
+
+              status:
+
+                minimum: stat
+
+                runtime: show.interfaces.status
+
+          vlan:
+
+            minimum: vlan
+
+            children:
+
+              brief:
+
+                minimum: br
+
+                runtime: show.vlan.brief
+
+          version:
+
+            minimum: ver
+
+            runtime: show.system.version
+
+      configure:
+
+        minimum: conf
+
+        children:
+
+          terminal:
+
+            minimum: t
+
+            runtime: configure.terminal
+
+  config:
+
+    commands:
+
+      interface:
+
+        minimum: int
+
+        runtime: interface.enter

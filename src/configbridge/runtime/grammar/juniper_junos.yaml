@@ -1,0 +1,13 @@
+vendor: Juniper Junos
+
+runtime:
+
+  show.interfaces.status: show interfaces terse
+
+  show.vlan.brief: show vlans
+
+  show.system.version: show version
+
+  configure.terminal: configure
+
+  interface.enter: edit interfaces {interface}
