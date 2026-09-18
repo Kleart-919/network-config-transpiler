@@ -8,10 +8,10 @@ Unlike traditional network management systems, ConfigBridge does not rely on dir
 
 The architecture is intended to satisfy four primary objectives:
 
-- Provide a unified network session manager supporting multiple connection protocols.
-- Discover and understand the connected network device rather than making assumptions about it.
-- Represent network configurations using a vendor-neutral Intermediate Intent Model.
-- Generate equivalent configurations for different network operating systems while preserving the intended behaviour of the original configuration.
+* Provide a unified network session manager supporting multiple connection protocols.
+* Discover and understand the connected network device rather than making assumptions about it.
+* Represent network configurations using a vendor-neutral Intermediate Intent Model.
+* Generate equivalent configurations for different network operating systems while preserving the intended behaviour of the original configuration.
 
 The overall architecture follows the principle that every layer should have a single responsibility and communicate with neighbouring layers through well-defined interfaces.
 
@@ -29,13 +29,11 @@ The Network Session Manager is responsible for communication.
 
 The Discovery Framework is responsible for understanding connected devices.
 
-The Configuration Parsers are responsible for understanding vendor syntax.
+The Configuration Engine is responsible for interpreting vendor syntax and generating vendor-specific configuration using declarative vendor schemas.
 
 The Intent Model is responsible for representing network intent.
 
 The Relationship Engine is responsible for resolving relationships between discovered network objects.
-
-The Configuration Generators are responsible for producing vendor-specific configuration output.
 
 Separating these responsibilities improves maintainability, scalability and extensibility while reducing coupling between system components.
 
@@ -45,13 +43,37 @@ Separating these responsibilities improves maintainability, scalability and exte
 
 The objective of ConfigBridge is not to remove vendor-specific syntax.
 
-Instead, vendor-specific syntax is isolated within dedicated parsers and generators.
+Instead, vendor-specific syntax is isolated within declarative vendor schemas that are interpreted by a shared configuration engine.
 
-Every parser produces the same Intermediate Intent Model regardless of vendor.
+Every supported vendor configuration is converted into the same Intermediate Intent Model regardless of vendor.
 
-Every generator consumes the same Intermediate Intent Model regardless of vendor.
+Every supported vendor configuration is generated from the same Intermediate Intent Model regardless of vendor.
 
-This architecture allows additional vendors to be integrated without modifying the existing parsers, generators or Intent Model.
+The current vendor syntax source of truth is maintained in:
+
+```text
+schema/vendors/
+├── cisco_ios.yaml
+└── juniper_junos.yaml
+```
+
+The shared batch configuration engine consists of:
+
+```text
+engine/generic_parser.py
+engine/generic_generator.py
+```
+
+The interactive runtime CLI translator uses:
+
+```text
+engine/generic_runtime_parser.py
+engine/generic_runtime_generator.py
+```
+
+Both pipelines consume the same vendor schema definitions.
+
+This architecture allows additional configuration vendors to be integrated primarily through additional schema data rather than separate hand-written parser and generator implementations. Extending the Intent Model is still required when new networking concepts fall outside its current scope.
 
 ---
 
@@ -79,15 +101,24 @@ For example:
 
 Cisco IOS
 
+```text
 switchport mode trunk
+```
+
 Juniper Junos
 
+```text
 interface-mode trunk
+```
+
 Both represent the same networking concept.
 
 The Intermediate Intent Model therefore stores:
 
+```text
 Layer 2 Mode = Trunk
+```
+
 rather than either vendor's syntax.
 
 This allows multiple vendor implementations to share the same internal representation.
@@ -98,6 +129,7 @@ This allows multiple vendor implementations to share the same internal represent
 
 The complete architecture is illustrated below.
 
+```text
                            User
                              │
                   Network Session Manager
@@ -105,7 +137,7 @@ The complete architecture is illustrated below.
                              │
                     Connected Network Device
                              │
-                    Discovery Manager
+                    Discovery Framework
                              │
          ┌───────────────────┴───────────────────┐
          │                                       │
@@ -120,14 +152,28 @@ The complete architecture is illustrated below.
                   Intent Resolution Layer
                              │
               Vendor-Neutral Intent Model
-                   ┌──────────┴──────────┐
-                   │                     │
-           Cisco Generator      Juniper Generator
-                   │                     │
-             Cisco Config       Juniper Config
+                             │
+                 Schema-Driven Engine
+                   ┌─────────┴─────────┐
+                   │                   │
+             Generic Parser      Generic Generator
+                   │                   │
+             Source Schema        Target Schema
+                   │                   │
+                   └─────────┬─────────┘
+                             │
+                   Target Configuration
+```
+
+The diagram distinguishes vendor-specific **discovery** from configuration syntax handling.
+
+Discovery parsers remain vendor-specific because operational command output differs between network operating systems.
+
+Configuration parsing and generation, within the current Intent Model scope, are handled by the shared schema-driven engine.
+
 Every component communicates only with neighbouring architectural layers.
 
-No parser communicates directly with generators.
+No configuration parser communicates directly with a configuration generator.
 
 No generator communicates directly with discovery modules.
 
@@ -149,11 +195,12 @@ ConfigBridge consists of seven major architectural layers.
 
 5. Intermediate Intent Model
 
-6. Configuration Parsers
+6. Schema-Driven Configuration Engine
 
-7. Configuration Generators
+7. Configuration Orchestration
 
 Each layer is discussed individually within this document.
+
 # 5. Network Session Manager
 
 The Network Session Manager is responsible for establishing and maintaining communication between ConfigBridge and the connected network device.
@@ -162,18 +209,18 @@ Unlike traditional network automation tools that focus solely on configuration d
 
 Currently supported protocols include:
 
-- SSH
-- Telnet
+* SSH
+* Telnet
 
 Future versions will also support:
 
-- Serial Console
-- NETCONF
-- REST APIs
+* Serial Console
+* NETCONF
+* REST APIs
 
-The session manager is intentionally isolated from the remaining architecture. Neither parsers nor generators communicate directly with network devices. Instead, all communication passes through the session manager.
+The session manager is intentionally isolated from the remaining architecture. Neither configuration parsers nor generators communicate directly with network devices. Instead, all communication passes through the session manager.
 
-```
+```text
 User
     │
 Network Session Manager
@@ -199,23 +246,23 @@ Discovery modules execute operational commands appropriate to the connected vend
 
 Example Cisco commands include:
 
-- show running-config
-- show interfaces status
-- show vlan brief
-- show cdp neighbors detail
+* show running-config
+* show interfaces status
+* show vlan brief
+* show cdp neighbors detail
 
 Example Juniper commands include:
 
-- show configuration
-- show interfaces terse
-- show vlans
-- show lldp neighbors
+* show configuration
+* show interfaces terse
+* show vlans
+* show lldp neighbors
 
 The collected information is parsed independently from configuration parsing.
 
 Configuration parsing and discovery parsing therefore become two different processes.
 
-```
+```text
 Operational Commands
         │
 Vendor Discovery Parser
@@ -225,11 +272,15 @@ Device Inventory
 
 This distinction allows ConfigBridge to separate:
 
+```text
 "What configuration exists?"
+```
 
-from
+from:
 
+```text
 "What hardware currently exists?"
+```
 
 ---
 
@@ -241,19 +292,19 @@ Unlike the Intent Model, which represents desired network behaviour, the Device 
 
 Examples include:
 
-- Physical interfaces
-- Interface operational status
-- Interface descriptions
-- Interface speed
-- VLAN membership
-- LLDP/CDP neighbours
-- Port-channel membership
-- Vendor information
-- Hardware capabilities
+* Physical interfaces
+* Interface operational status
+* Interface descriptions
+* Interface speed
+* VLAN membership
+* LLDP/CDP neighbours
+* Port-channel membership
+* Vendor information
+* Hardware capabilities
 
 Example:
 
-```
+```text
 Device Inventory
 
 Hostname
@@ -279,7 +330,7 @@ Multiple inventories may exist simultaneously.
 
 For example:
 
-```
+```text
 Source Cisco Inventory
 
 Destination Juniper Inventory
@@ -291,7 +342,7 @@ Both inventories are later analysed by the Relationship Engine.
 
 # 8. Relationship Engine
 
-The Relationship Engine represents one of the principal research contributions of ConfigBridge.
+The Relationship Engine represents one of the principal architectural components of ConfigBridge.
 
 During development it became evident that interface names alone cannot reliably identify equivalent interfaces between different vendors.
 
@@ -299,25 +350,25 @@ For example:
 
 Cisco Catalyst 2960
 
-```
+```text
 Gi0/1
 ```
 
 Cisco Catalyst 3560X
 
-```
+```text
 Gi1/0/1
 ```
 
 Cisco Nexus
 
-```
+```text
 Ethernet1/1
 ```
 
 Juniper EX
 
-```
+```text
 ge-0/0/0
 ```
 
@@ -325,26 +376,32 @@ Although all four interfaces may perform identical network functions, their iden
 
 Consequently, ConfigBridge does not attempt to translate interface names directly.
 
-Instead, the Relationship Engine analyses multiple characteristics to determine which discovered interfaces most likely represent the same physical or logical connection.
+The current Relationship Engine is a **v1 implementation based on alias matching**.
 
-Potential relationship indicators include:
+It produces relationship results between discovered network objects when matching aliases are available.
 
-- Interface description
-- Operational status
-- Interface mode
-- VLAN membership
-- Interface speed
-- LLDP neighbours
-- CDP neighbours
-- Port-channel membership
-- MAC address learning
-- Additional vendor-specific operational information
+The current implementation should therefore not be interpreted as performing full multi-signal topology inference.
 
-Rather than producing a direct mapping, the Relationship Engine produces relationship confidence.
+Future relationship analysis may incorporate additional characteristics such as:
+
+* Interface description
+* Operational status
+* Interface mode
+* VLAN membership
+* Interface speed
+* LLDP neighbours
+* CDP neighbours
+* Port-channel membership
+* MAC address learning
+* Additional vendor-specific operational information
+
+These are future relationship signals rather than all being inputs to the current v1 matching implementation.
+
+The Relationship Engine can produce relationship confidence for resolved matches.
 
 Example:
 
-```
+```text
 Source Interface
 
 Gi1/0/48
@@ -362,25 +419,28 @@ Destination Interface
 ge-0/0/0
 ```
 
-This approach avoids assumptions regarding vendor numbering conventions while providing significantly greater flexibility for heterogeneous network environments.
+The confidence value represents the relationship result produced by the current matching logic and should not be interpreted as a claim that all listed future signals are already used to calculate it.
 
 The Relationship Engine therefore becomes responsible for identifying corresponding network objects before configuration generation occurs.
 
-Neither parsers nor generators perform interface mapping directly.
+Neither the configuration parser nor the configuration generator performs interface mapping directly.
 
 Instead:
 
-```
+```text
 Device Inventory
         │
 Relationship Engine
         │
 Resolved Network Objects
         │
-Configuration Generator
+Configuration Generation
 ```
 
-This architectural separation significantly improves extensibility while supporting future automated discovery and migration workflows.
+This architectural separation provides a foundation for future automated discovery and migration workflows.
+
+---
+
 # 9. Vendor-Neutral Intent Model
 
 The Vendor-Neutral Intent Model is the central data representation used throughout ConfigBridge.
@@ -393,13 +453,13 @@ For example, configuring a Layer 2 trunk interface differs significantly between
 
 Cisco IOS
 
-```
+```text
 switchport mode trunk
 ```
 
 Juniper Junos
 
-```
+```text
 interface-mode trunk
 ```
 
@@ -409,7 +469,7 @@ Rather than storing vendor syntax, the Intent Model stores only the underlying n
 
 Example:
 
-```
+```text
 Interface
 │
 ├── Description
@@ -419,30 +479,30 @@ Interface
 └── Additional Attributes
 ```
 
-The Intent Model therefore becomes the common language spoken by every parser and every generator.
+The Intent Model therefore becomes the common language between the generic parser and generic generator.
 
 The current implementation supports:
 
-- Hostname
-- VLAN definitions
-- Interface descriptions
-- Access ports
-- Trunk ports
-- Allowed VLAN membership
+* Hostname
+* VLAN definitions
+* Interface descriptions
+* Access ports
+* Trunk ports
+* Allowed VLAN membership
 
 The model is intentionally designed to be extensible.
 
 Future versions will incorporate:
 
-- Static routing
-- Dynamic routing
-- ACLs
-- NTP
-- SNMP
-- VLAN interfaces
-- QoS
-- VRFs
-- Additional Layer 2 and Layer 3 services
+* Static routing
+* Dynamic routing
+* ACLs
+* NTP
+* SNMP
+* VLAN interfaces
+* QoS
+* VRFs
+* Additional Layer 2 and Layer 3 services
 
 The Intent Model is not intended to remain static throughout the lifetime of the project.
 
@@ -450,120 +510,130 @@ Instead, it represents a versioned schema capable of expanding as additional net
 
 ---
 
-# 10. Configuration Parsers
+# 10. Schema-Driven Configuration Parsing
 
-Configuration parsers convert vendor-specific configuration syntax into the Vendor-Neutral Intent Model.
+Configuration parsing converts vendor-specific configuration syntax into the Vendor-Neutral Intent Model.
 
-Each supported network operating system implements its own parser.
+The current implementation does not maintain separate hand-written Cisco IOS and Juniper Junos configuration parser implementations.
 
-Current implementation:
+Instead, a shared generic parser interprets the relevant vendor schema.
 
-```
-Cisco IOS Parser
-
-Juniper Junos Parser
-```
-
-Future implementations:
-
-```
-Cisco Nexus Parser
-
-Arista EOS Parser
-
-Aruba Parser
-
-HP Parser
+```text
+Vendor Configuration
+        │
+        ▼
+Vendor Schema
+        │
+        ▼
+Generic Configuration Parser
+(engine/generic_parser.py)
+        │
+        ▼
+Vendor-Neutral Intent Model
 ```
 
-Each parser understands only its own vendor's syntax.
+The current vendor syntax source of truth is:
+
+```text
+schema/vendors/cisco_ios.yaml
+schema/vendors/juniper_junos.yaml
+```
 
 For example:
 
-```
-Cisco Configuration
-
-↓
-
-Cisco Parser
-
-↓
-
+```text
+Cisco IOS Configuration
+        │
+        ▼
+cisco_ios.yaml
+        │
+        ▼
+GenericConfigParser
+        │
+        ▼
 Intent Model
 ```
 
-and
+and:
 
-```
-Juniper Configuration
-
-↓
-
-Juniper Parser
-
-↓
-
+```text
+Juniper Junos Configuration
+        │
+        ▼
+juniper_junos.yaml
+        │
+        ▼
+GenericConfigParser
+        │
+        ▼
 Intent Model
 ```
 
-produce identical internal representations despite originating from different network operating systems.
+Both paths use the same parser implementation.
 
-Parsers therefore become responsible only for syntactic interpretation.
+The parser performs syntactic interpretation only.
 
-They do not perform translation.
-
-They do not generate target configuration.
-
-They simply transform vendor-specific syntax into a vendor-neutral representation.
+It does not directly generate target configuration.
 
 ---
 
-# 11. Configuration Generators
+# 11. Schema-Driven Configuration Generation
 
-Configuration generators perform the inverse operation.
+Configuration generation performs the inverse operation.
 
-Rather than interpreting configuration syntax, generators construct vendor-specific configuration from the Vendor-Neutral Intent Model.
+The generic generator constructs vendor-specific configuration from the Vendor-Neutral Intent Model using the target vendor schema.
 
-Example:
-
+```text
+Vendor-Neutral Intent Model
+        │
+        ▼
+Target Vendor Schema
+        │
+        ▼
+Generic Configuration Generator
+(engine/generic_generator.py)
+        │
+        ▼
+Target Configuration
 ```
+
+For example:
+
+```text
 Intent Model
-
-↓
-
-Cisco Generator
-
-↓
-
+     │
+     ▼
+cisco_ios.yaml
+     │
+     ▼
+GenericConfigGenerator
+     │
+     ▼
 Cisco IOS Configuration
 ```
 
-or
+or:
 
-```
+```text
 Intent Model
-
-↓
-
-Juniper Generator
-
-↓
-
+     │
+     ▼
+juniper_junos.yaml
+     │
+     ▼
+GenericConfigGenerator
+     │
+     ▼
 Juniper Junos Configuration
 ```
 
-Current implementation includes:
+The same generator implementation is used for both vendors.
 
-- Cisco IOS Generator
-- Juniper Junos Generator
+Generators do not determine interface relationships.
 
-Unlike parsers, generators should never determine interface relationships.
+Interface relationships are resolved beforehand by the Relationship Engine when relationship information is available.
 
-Interface relationships are resolved beforehand by the Relationship Engine.
-
-Generators therefore assume that the Intent Model already references the correct destination network objects.
-
-This separation simplifies generator implementation while improving long-term scalability.
+Generators therefore operate on the resolved Intent Model and apply the target vendor's schema-defined syntax.
 
 ---
 
@@ -571,23 +641,25 @@ This separation simplifies generator implementation while improving long-term sc
 
 Configuration transpilation within ConfigBridge follows a compiler-inspired architecture.
 
-```
+```text
 Source Configuration
-
-↓
-
-Vendor Configuration Parser
-
-↓
-
+        │
+        ▼
+Source Vendor Schema
+        │
+        ▼
+Generic Configuration Parser
+        │
+        ▼
 Vendor-Neutral Intent Model
-
-↓
-
-Configuration Generator
-
-↓
-
+        │
+        ▼
+Target Vendor Schema
+        │
+        ▼
+Generic Configuration Generator
+        │
+        ▼
 Target Configuration
 ```
 
@@ -595,67 +667,73 @@ Unlike direct command mapping, every supported vendor passes through the same in
 
 Consequently:
 
-```
+```text
 Cisco
-
-↓
-
+  │
+  ▼
+Generic Parser + Cisco Schema
+  │
+  ▼
 Intent Model
-
-↓
-
+  │
+  ▼
+Generic Generator + Juniper Schema
+  │
+  ▼
 Juniper
 ```
 
-and
+and:
 
-```
+```text
 Juniper
-
-↓
-
+  │
+  ▼
+Generic Parser + Juniper Schema
+  │
+  ▼
 Intent Model
-
-↓
-
+  │
+  ▼
+Generic Generator + Cisco Schema
+  │
+  ▼
 Cisco
 ```
 
-become identical architectural workflows.
+use the same architectural pipeline.
 
-The system therefore scales according to the number of supported vendors rather than the number of possible vendor-to-vendor translation combinations.
+The system therefore scales primarily with the amount of vendor schema and validation work required rather than requiring a separate parser and generator implementation for every vendor pair.
 
-Instead of requiring direct translation between every pair of vendors:
+The interactive runtime CLI translator follows the same schema-driven principle:
 
-```
-Cisco → Juniper
-
-Cisco → Aruba
-
-Cisco → Arista
-
-Juniper → Cisco
-
-...
-```
-
-ConfigBridge requires only:
-
-```
-Vendor Parser
-
-↓
-
-Intent Model
-
-↓
-
-Vendor Generator
+```text
+Runtime CLI Input
+        │
+        ▼
+Generic Runtime Parser
+        │
+        ▼
+Vendor Schema
+        │
+        ▼
+Runtime Intent
+        │
+        ▼
+Generic Runtime Generator
+        │
+        ▼
+Vendor CLI Output
 ```
 
-for each supported network operating system.
+The runtime implementation is provided by:
 
-This significantly reduces architectural complexity while simplifying future vendor integration.
+```text
+engine/generic_runtime_parser.py
+engine/generic_runtime_generator.py
+```
+
+These components consume the same vendor schema files used by the batch configuration pipeline.
 
 ---
 
@@ -663,36 +741,29 @@ This significantly reduces architectural complexity while simplifying future ven
 
 The complete transpilation workflow consists of three independent knowledge domains.
 
-```
+```text
 Device Knowledge
 
 ↓
-
 Device Inventory
 
 ↓
-
 Relationship Knowledge
 
 ↓
-
 Relationship Engine
 
 ↓
-
 Configuration Knowledge
 
 ↓
-
-Intent Model
+Vendor-Neutral Intent Model
 
 ↓
-
 Vendor Syntax
 
 ↓
-
-Configuration Generator
+Schema-Driven Configuration Engine
 ```
 
 Each architectural layer has a single responsibility.
@@ -703,139 +774,248 @@ The Relationship Engine understands correspondence between network objects.
 
 The Intent Model understands desired network behaviour.
 
-The Configuration Generators understand vendor-specific syntax.
+The vendor schemas contain vendor-specific configuration syntax and related schema-defined behaviour.
+
+The generic configuration engine interprets those schemas for parsing and generation.
 
 This separation minimises coupling while allowing each subsystem to evolve independently as additional vendors and networking technologies are incorporated.
+
+---
+
 # 14. Vendor Plugin Architecture
 
 ConfigBridge follows a plugin-based architecture for vendor integration.
 
-Each supported network operating system is implemented as an independent vendor package.
+Vendor integration separates discovery-specific behaviour from configuration syntax knowledge.
 
-A complete vendor implementation consists of four primary components:
+A conceptual vendor integration consists of:
 
+```text
+Vendor Integration
+
+├── Discovery Support
+├── Configuration Schema
+└── Validation / Registration Metadata
 ```
-Vendor Plugin
 
-├── Discovery Parser
-├── Configuration Parser
-├── Configuration Generator
-└── Validation Rules
+Discovery support may contain vendor-specific discovery parsing because operational command output differs between platforms.
+
+Configuration syntax is not implemented as a separate hand-written parser and generator pair for every vendor.
+
+Instead, the shared engine interprets the relevant vendor schema:
+
+```text
+schema/vendors/<vendor>.yaml
+             │
+             ▼
+        SchemaLoader
+             │
+             ▼
+   Generic Configuration Engine
+             │
+       ┌─────┴─────┐
+       ▼           ▼
+     Parse       Generate
 ```
 
-Each plugin is responsible only for understanding and generating its own vendor syntax.
+The current batch configuration engine uses:
 
-It does not interact directly with other vendor plugins.
+```text
+engine/generic_parser.py
+engine/generic_generator.py
+```
 
-Instead, every plugin communicates only through the Vendor-Neutral Intent Model.
+The interactive runtime CLI translator uses:
 
-This architecture significantly reduces coupling between vendor implementations while simplifying future expansion.
+```text
+engine/generic_runtime_parser.py
+engine/generic_runtime_generator.py
+```
 
-**Implementation note:** the Configuration Parser and Configuration Generator are implemented as one shared, schema-driven engine (`engine/generic_parser.py`, `engine/generic_generator.py`) rather than hand-written per-vendor code. Each vendor's syntax, quirks, and interface-naming convention are declared as data in `schema/vendors/<vendor>.yaml`; the same schema file also drives the interactive runtime CLI translator (`engine/generic_runtime_parser.py`, `engine/generic_runtime_generator.py`), which was originally a second, independent implementation of vendor knowledge before this convergence. This applies within the current Intent Model's scope (hostname, VLANs, interface mode/description/VLANs); extending to new networking concepts (routing, ACLs, etc.) still requires extending the Intent Model itself, per §19.
+Both pipelines consume the same vendor schema data.
+
+For the currently supported vendors:
+
+```text
+schema/vendors/cisco_ios.yaml
+schema/vendors/juniper_junos.yaml
+```
+
+are the source of truth for vendor-specific configuration syntax within the current Intent Model scope.
+
+The default vendor registry is assembled through:
+
+```text
+plugins/vendor_registry.py
+build_default_registry()
+```
+
+The transpilation orchestration in:
+
+```text
+transpiler/transpilation_engine.py
+```
+
+uses this registry to resolve source and target vendor integrations.
+
+This architecture avoids duplicating vendor configuration knowledge across separate parser and generator implementations while preserving a clear vendor integration boundary.
+
+Extending the system to networking concepts outside the current Intent Model scope still requires extending the model and corresponding engine/schema support.
 
 ---
 
 # 15. Vendor Integration Workflow
 
-Adding support for a new network operating system follows a predictable workflow.
+Adding support for a new network operating system follows a schema-driven workflow.
 
-```
+```text
 New Vendor
 
 ↓
 
-Discovery Parser
+Vendor Configuration Schema
 
 ↓
 
-Configuration Parser
+SchemaLoader Validation
 
 ↓
 
-Vendor-Neutral Intent Model
+Generic Parser / Generator
 
 ↓
 
-Configuration Generator
+Vendor Registry
+
+↓
+
+Parity / Behaviour Validation
 
 ↓
 
 Supported Platform
 ```
 
+Discovery support remains a separate consideration where the new platform exposes vendor-specific operational commands.
+
 Unlike traditional migration tools, ConfigBridge does not require direct vendor-to-vendor translators.
 
-For example, adding Arista EOS support does not require implementing:
+For example, adding Arista EOS configuration support does not require implementing:
 
-```
+```text
 Cisco → Arista
-
 Juniper → Arista
-
 Aruba → Arista
 ```
 
-Instead, only two new components are required:
+Instead, configuration support is primarily added through:
 
+```text
+Arista EOS Schema
+        │
+        ▼
+Shared Generic Parser / Generator
+        │
+        ▼
+Vendor Registry
+        │
+        ▼
+Validation
 ```
-Arista Parser
 
-Arista Generator
-```
+The existing Intent Model remains shared where the required networking concepts are already represented.
 
-The existing Intent Model remains unchanged.
+If the new vendor requires networking concepts that are not currently represented by the Intent Model, the model and corresponding engine/schema support must also be extended.
 
-This architecture allows ConfigBridge to scale approximately linearly with the number of supported vendors rather than exponentially with the number of vendor combinations.
+This architecture allows configuration syntax support to scale approximately linearly with the number of vendors rather than with the number of vendor-to-vendor combinations.
 
 ---
 
 # 16. Future Automated Vendor Onboarding
 
-The current implementation manually develops parsers and generators for supported vendors.
+The current implementation does not generate parser and generator code separately for each supported vendor.
 
-However, the architecture has been intentionally designed to support future automated vendor onboarding.
+Instead, vendor configuration knowledge is represented through declarative schema data consumed by the shared generic engine.
 
-Rather than requiring developers to manually implement parser logic for every new platform, future versions may derive vendor capabilities from publicly available technical resources.
+Future versions may further automate the process of creating and validating this schema data.
 
 Potential information sources include:
 
-- Vendor command references
-- Vendor configuration guides
-- Sample configurations
-- Device operational command output
-- Built-in CLI help systems
+* Vendor command references
+* Vendor configuration guides
+* Sample configurations
+* Device operational command output
+* Built-in CLI help systems
 
-The proposed onboarding workflow is illustrated below.
+The long-term onboarding concept is therefore:
 
-```
+```text
 Vendor Documentation
 
 ↓
 
-Grammar Discovery
+Schema Authoring / Drafting
 
 ↓
 
-Parser Generation
+Schema Validation
 
 ↓
 
-Generator Generation
+Human Review
 
 ↓
 
-Validation
+Vendor Schema
 
 ↓
 
-Vendor Plugin
+Generic Parser / Generator
+
+↓
+
+Behavioural Validation
+
+↓
+
+Supported Vendor
 ```
 
-This approach shifts vendor integration from software development towards validation and verification.
+A narrower implementation of this concept already exists through:
 
-The objective is to reduce manual engineering effort while maintaining correctness.
+```text
+tools/schema_drafter.py
+```
 
-**Implementation note:** a deliberately narrower, more conservative version of this workflow exists: `tools/schema_drafter.py`, an offline, human-triggered authoring tool. Given vendor documentation excerpts and a target concept, it drafts a `schema/vendors/*.yaml` fragment (not generated *code*) and self-validates it — structurally against `SchemaLoader`, and behaviorally by round-tripping a supplied sample config through the real generic engine with the draft merged in memory — before a human reviews, edits, and commits it. It never writes directly to the real schema files, and nothing in the batch or runtime pipeline ever calls an LLM or fetches anything live at execution time: both pipelines only ever run against committed, human-reviewed schema data, identically whether a draft originated from this tool or was hand-written. Full "Parser Generation"/"Generator Generation" from documentation, as originally envisioned above, remains unbuilt — the tool drafts data for the existing generic engine to interpret, not new parsing/generation code.
+This is an offline, human-triggered schema-authoring and validation tool.
+
+Given vendor documentation excerpts and a target concept, it can draft a fragment of:
+
+```text
+schema/vendors/<vendor>.yaml
+```
+
+The output is schema data rather than generated parser or generator code.
+
+The tool validates the draft structurally against the schema model and can perform behavioural validation by running a supplied sample configuration through the real generic engine with the draft merged in memory.
+
+The tool does not directly modify the committed vendor schema files.
+
+The production batch and runtime pipelines do not call an LLM or fetch vendor documentation at execution time. They operate against committed, human-reviewed schema data.
+
+The intended separation is therefore:
+
+```text
+Authoring Assistance
+        │
+        ▼
+Vendor Schema
+        │
+        ▼
+Shared Generic Engine
+```
+
+Full automated parser or generator code generation remains future work and is not part of the current implementation.
 
 ---
 
@@ -843,7 +1023,7 @@ The objective is to reduce manual engineering effort while maintaining correctne
 
 Before configuration transpilation begins, ConfigBridge discovers the connected device.
 
-```
+```text
 SSH / Telnet Session
 
 ↓
@@ -863,19 +1043,21 @@ The Device Inventory stores operational rather than configuration information.
 
 Typical discovery information includes:
 
-- Device hostname
-- Vendor
-- Software version
-- Interface inventory
-- Operational status
-- Interface descriptions
-- VLAN membership
-- Link speed
-- LLDP neighbours
-- CDP neighbours
-- Port-channel information
+* Device hostname
+* Vendor
+* Software version
+* Interface inventory
+* Operational status
+* Interface descriptions
+* VLAN membership
+* Link speed
+* LLDP neighbours
+* CDP neighbours
+* Port-channel information
 
 Future versions may extend discovery to include routing tables, ACLs, QoS policies and additional operational data.
+
+Discovery parsing remains separate from configuration parsing because the two processes answer different architectural questions.
 
 ---
 
@@ -885,9 +1067,17 @@ One of the principal architectural objectives of ConfigBridge is avoiding assump
 
 Traditional migration tools frequently assume that interfaces with similar numbering schemes correspond to one another.
 
-ConfigBridge instead derives interface relationships from discovered evidence.
+ConfigBridge instead provides a relationship-resolution layer over discovered network information.
 
-```
+The current Relationship Engine is a **v1 alias-based implementation**.
+
+Its current matching logic uses interface aliases to identify corresponding network objects.
+
+It therefore does not yet implement the complete multi-signal relationship analysis envisioned by the broader architecture.
+
+The current workflow is:
+
+```text
 Source Device Inventory
 
            +
@@ -900,42 +1090,67 @@ Relationship Engine
 
 ↓
 
-Relationship Graph
+Relationship Results
 
 ↓
 
 Configuration Generation
 ```
 
-Rather than producing absolute mappings, the Relationship Engine produces relationship confidence.
+The v1 engine can produce a confidence value for resolved relationships.
 
 Example:
 
-```
-Cisco Gi1/0/48
+```text
+Source Interface
+
+Gi1/0/48
 
 ↓
 
-Relationship Confidence = 96%
+Relationship Confidence
+
+96%
 
 ↓
 
-Juniper ge-0/0/0
+Destination Interface
+
+ge-0/0/0
 ```
 
-Relationship confidence may be derived from:
+Future relationship scoring may incorporate:
 
-- Interface descriptions
-- VLAN membership
-- Interface operational mode
-- Interface speed
-- LLDP neighbours
-- CDP neighbours
-- Port-channel membership
-- MAC address learning
-- Additional operational characteristics
+* Interface descriptions
+* VLAN membership
+* Interface operational mode
+* Interface speed
+* LLDP neighbours
+* CDP neighbours
+* Port-channel membership
+* MAC address learning
+* Additional operational characteristics
 
-This design avoids dependence on vendor-specific interface numbering conventions while improving migration reliability.
+These are future scoring signals and should not be interpreted as all being implemented by the current alias-only v1 engine.
+
+This design avoids dependence on vendor-specific interface numbering conventions while providing a foundation for richer relationship analysis.
+
+Neither the configuration parser nor configuration generator independently guesses interface relationships.
+
+Instead:
+
+```text
+Device Inventory
+        │
+        ▼
+Relationship Engine
+        │
+        ▼
+Resolved Network Objects
+        │
+        ▼
+Configuration Generation
+```
 
 ---
 
@@ -945,29 +1160,36 @@ The current prototype intentionally limits supported networking concepts.
 
 Current implementation supports:
 
-- Hostnames
-- VLAN definitions
-- Layer 2 interfaces
-- Access ports
-- Trunk ports
-- Interface descriptions
-- Allowed VLAN membership
+* Hostnames
+* VLAN definitions
+* Layer 2 interfaces
+* Access ports
+* Trunk ports
+* Interface descriptions
+* Allowed VLAN membership
 
 The following features remain future work:
 
-- Routing protocols
-- Static routing
-- VLAN interfaces
-- ACL translation
-- SNMP
-- NTP
-- QoS
-- VRFs
-- Vendor-specific features
+* Routing protocols
+* Static routing
+* VLAN interfaces
+* ACL translation
+* SNMP
+* NTP
+* QoS
+* VRFs
+* Vendor-specific features outside the current Intent Model
+
+The Relationship Engine is currently limited to v1 alias-based matching. Richer relationship signals such as interface descriptions, VLAN information, LLDP/CDP and other operational characteristics remain future work.
+
+Safety-related functionality and configuration comparison also remain placeholders/stubs in the current implementation.
 
 Restricting the prototype to a manageable subset allows the architecture itself to be validated before expanding feature coverage.
 
 This follows an iterative software engineering methodology where architectural correctness is prioritised before functional completeness.
+
+---
+
 # 20. Architectural Rationale
 
 The architectural decisions within ConfigBridge were driven by maintainability, scalability and long-term extensibility rather than short-term implementation convenience.
@@ -978,41 +1200,49 @@ Each layer answers a different engineering question.
 
 The Discovery Framework answers:
 
-```
+```text
 What currently exists on the connected device?
 ```
 
 The Relationship Engine answers:
 
-```
+```text
 Which discovered network objects correspond to one another?
 ```
 
 The Intent Model answers:
 
-```
+```text
 What is the desired network behaviour?
 ```
 
-The Configuration Generator answers:
+The vendor schema answers:
 
+```text
+How is that behaviour represented by a particular network operating system?
 ```
-How is that behaviour expressed in a specific network operating system?
+
+The generic configuration engine answers:
+
+```text
+How should that vendor-specific schema be interpreted for parsing or generation?
 ```
 
 Separating these concerns prevents vendor-specific implementation details from propagating throughout the remainder of the system.
+
+The result is a system where vendor syntax can evolve independently of the core Intent Model and shared engine.
 
 ---
 
 # 21. Scalability Analysis
 
-One of the principal motivations behind the proposed architecture is scalability.
+One of the principal motivations behind the architecture is scalability.
 
 Traditional command translation approaches require direct mappings between every supported vendor.
 
 For N vendors:
 
-```
+```text
 Cisco ↔ Juniper
 Cisco ↔ Aruba
 Cisco ↔ Arista
@@ -1024,27 +1254,45 @@ Juniper ↔ Arista
 
 The number of translation paths increases rapidly as additional vendors are introduced.
 
-ConfigBridge instead adopts a hub-and-spoke architecture centred around the Vendor-Neutral Intent Model.
+ConfigBridge instead adopts a hub-and-spoke architecture centred around the Vendor-Neutral Intent Model and shared generic configuration engine.
 
-```
-Vendor Parser
-        │
-        ▼
+```text
+Vendor Schema
+      │
+      ▼
+Generic Parser
+      │
+      ▼
 Vendor-Neutral Intent Model
-        ▲
-        │
-Vendor Generator
+      │
+      ▼
+Generic Generator
+      │
+      ▼
+Vendor Schema
 ```
 
-Each newly supported vendor contributes only:
+Each newly supported configuration vendor primarily contributes a new vendor schema and corresponding registry/validation information rather than a new hand-written parser and generator pair.
 
-- one Discovery Parser
-- one Configuration Parser
-- one Configuration Generator
+For example:
 
-The remainder of the architecture remains unchanged.
+```text
+New Vendor
+    │
+    └── Vendor Schema
+              │
+              ▼
+       Shared Generic Engine
+              │
+              ▼
+       Existing Intent Model
+```
 
-This significantly reduces implementation complexity while simplifying future expansion.
+Additional discovery support may still require vendor-specific discovery logic because operational commands and device information differ between platforms.
+
+Similarly, adding a networking concept outside the current Intent Model requires changes to the model and corresponding engine/schema support.
+
+The architecture therefore reduces duplication in configuration syntax handling while retaining explicit vendor-specific boundaries where vendor behaviour genuinely differs.
 
 ---
 
@@ -1056,12 +1304,12 @@ Instead, the project aims to improve accessibility within heterogeneous network 
 
 Many organisations operating multi-vendor infrastructures face operational challenges such as:
 
-- dependence on vendor-specific expertise
-- specialist recruitment
-- vendor certification requirements
-- migration complexity
-- investment in commercial management platforms
-- infrastructure decisions constrained by existing engineer familiarity with a particular vendor
+* dependence on vendor-specific expertise
+* specialist recruitment
+* vendor certification requirements
+* migration complexity
+* investment in commercial management platforms
+* infrastructure decisions constrained by existing engineer familiarity with a particular vendor
 
 ConfigBridge addresses these challenges by providing a vendor-neutral architecture capable of understanding multiple network operating systems through a common internal representation.
 
@@ -1079,55 +1327,53 @@ Examples include:
 
 Network Session Manager
 
-- Serial console support
-- NETCONF
-- REST APIs
+* Serial console support
+* NETCONF
+* REST APIs
 
 Discovery Framework
 
-- Additional operational commands
-- Hardware capability discovery
-- Routing discovery
-- ACL discovery
+* Additional operational commands
+* Hardware capability discovery
+* Routing discovery
+* ACL discovery
 
 Relationship Engine
 
-- Confidence scoring
-- Machine-assisted relationship inference
-- Topology awareness
-- Multi-device correlation
+* Richer confidence scoring
+* Machine-assisted relationship inference
+* Topology awareness
+* Multi-device correlation
 
 Intent Model
 
-- Routing
-- ACLs
-- QoS
-- VRFs
-- Layer 3 interfaces
-- Security services
+* Routing
+* ACLs
+* QoS
+* VRFs
+* Layer 3 interfaces
+* Security services
 
-Configuration Generators
+Configuration Engine
 
-- Cisco Nexus
-- Aruba
-- HP
-- Arista EOS
-- Additional vendor plugins
+* Additional vendor schemas
+* Additional configuration concepts
+* Expanded validation coverage
 
 Vendor Onboarding
 
-- Automated parser generation
-- Automated generator generation
-- Documentation-assisted vendor integration
-- Template-driven plugin generation
+* Automated schema drafting
+* Documentation-assisted vendor integration
+* Template-driven schema authoring
+* Potential future parser/generator automation
 
 ---
 
 # 24. Architectural Roadmap
 
-The proposed architecture evolves through successive implementation stages.
+The architecture evolves through successive implementation stages.
 
-```
+```text
 Phase 1
 
 Network Session Manager
@@ -1139,7 +1385,7 @@ Phase 2
 Discovery
 Relationship Engine
 Intent Model
-Configuration Transpilation
+Schema-Driven Configuration Transpilation
 
 ↓
 
@@ -1159,7 +1405,11 @@ Relationship Learning
 Knowledge-assisted Discovery
 ```
 
-Each phase extends the previous architecture without requiring significant redesign.
+The current implementation already contains the core schema-driven transpilation orchestration and a v1 Relationship Engine.
+
+Future phases extend the existing architecture with additional operational and analytical capabilities rather than replacing the central Intent Model and shared configuration engine.
+
+Each phase extends the previous architecture without requiring fundamental redesign.
 
 This incremental approach supports iterative development while maintaining architectural consistency throughout the project lifecycle.
 
@@ -1169,10 +1419,12 @@ This incremental approach supports iterative development while maintaining archi
 
 ConfigBridge adopts a layered architecture that separates communication, discovery, relationship resolution, network intent and configuration generation into independent software components.
 
-This separation enables vendor-specific syntax to remain isolated while network behaviour is represented using a vendor-neutral Intermediate Intent Model.
+This separation enables vendor-specific syntax to remain isolated within declarative vendor schemas while network behaviour is represented using a vendor-neutral Intermediate Intent Model.
 
-Unlike direct command translation systems, ConfigBridge combines device discovery, relationship analysis and intent-based configuration generation to create a scalable multi-vendor transpilation platform.
+The current configuration pipeline uses a shared schema-driven parser and generator rather than separate hand-written parser and generator implementations for each vendor.
 
-The architecture is designed to support future expansion through additional vendor plugins, automated discovery capabilities and semi-automated vendor onboarding while preserving the core architectural principles established within the current implementation.
+Device discovery and relationship resolution remain separate architectural concerns, allowing configuration transpilation to operate on a representation of network intent rather than relying solely on vendor-specific syntax or interface naming conventions.
+
+The architecture is designed to support future expansion through additional vendor schemas, discovery capabilities, richer relationship analysis and semi-automated vendor onboarding while preserving the core architectural principles established within the current implementation.
 
 Consequently, ConfigBridge provides a maintainable and extensible foundation for heterogeneous network configuration management while reducing operational complexity and supporting cost avoidance within multi-vendor environments.
