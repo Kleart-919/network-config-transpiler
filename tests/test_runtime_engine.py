@@ -37,5 +37,5 @@ commands = [
 for command in commands:
     print()
     print(command)
-    print("↓")
+    print("->")
     print(engine.translate(command))

@@ -2,15 +2,10 @@ from pathlib import Path
 
 from configbridge.discovery.discovery_manager import DiscoveryManager
 from configbridge.discovery.discovery_profile import DiscoveryProfile
-from configbridge.parsers.cisco_parser import CiscoParser
 from configbridge.parsers.juniper_discovery_parser import (
     JuniperDiscoveryParser,
 )
-from configbridge.renderers.juniper_generator import (
-    JuniperGenerator,
-)
-from configbridge.plugins.vendor_manifest import VendorManifest
-from configbridge.plugins.vendor_registry import VendorRegistry
+from configbridge.plugins.vendor_registry import build_default_registry
 from configbridge.transpiler.transpilation_engine import (
     TranspilationEngine,
 )
@@ -20,35 +15,24 @@ def dummy_runner(command: str) -> str:
     return ""
 
 
-registry = VendorRegistry()
+# configuration_parser/configuration_generator come from the schema-driven
+# generic engine (see plugins/vendor_registry.build_default_registry).
+# Discovery wiring is a separate concern, added here on top.
+registry = build_default_registry()
 
-registry.register(
-    VendorManifest(
-        name="Cisco IOS",
-        discovery_profile=DiscoveryProfile(
-            vendor_name="Cisco IOS",
-            commands={},
-        ),
-        discovery_parser=None,
-        configuration_parser=CiscoParser(),
-        configuration_generator=None,
-    )
+registry.get_vendor("Cisco IOS").discovery_profile = DiscoveryProfile(
+    vendor_name="Cisco IOS",
+    commands={},
 )
 
-registry.register(
-    VendorManifest(
-        name="Juniper Junos",
-        discovery_profile=DiscoveryProfile(
-            vendor_name="Juniper Junos",
-            commands={
-                "interfaces": "show interfaces terse",
-            },
-        ),
-        discovery_parser=JuniperDiscoveryParser(),
-        configuration_parser=None,
-        configuration_generator=JuniperGenerator(),
-    )
+juniper = registry.get_vendor("Juniper Junos")
+juniper.discovery_profile = DiscoveryProfile(
+    vendor_name="Juniper Junos",
+    commands={
+        "interfaces": "show interfaces terse",
+    },
 )
+juniper.discovery_parser = JuniperDiscoveryParser()
 
 engine = TranspilationEngine(
     registry=registry,

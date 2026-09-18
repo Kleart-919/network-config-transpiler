@@ -1,0 +1,174 @@
+# Cisco IOS vendor schema.
+#
+# tokenizer.style: block - lines are matched top-to-bottom by regex; a
+# "block_start" line opens a context (vlan/interface) that subsequent
+# "member" lines are matched against, until another block_start line closes
+# it. This mirrors CiscoParser's current_vlan/current_interface state
+# machine exactly (parsers/cisco_parser.py).
+#
+# naming_convention.recognizes: Phase 1-6 deliberately reproduced
+# CiscoGenerator.map_interface_name's bug (it kept only the middle and last
+# slash-separated segment of a Juniper "ge-X/Y/Z" name, hardcoding the
+# module segment to 0 and silently discarding X) for migration parity. As
+# of Phase 7 that bug is fixed here: all three segments are preserved
+# (ge-X/Y/Z -> GigabitEthernetX/Y/Z), unifying with the runtime output
+# path's CiscoOutputGenerator, which never had this bug.
+
+vendor:
+  id: cisco_ios
+  display_name: Cisco IOS
+
+tokenizer:
+  style: block
+
+naming_convention:
+  recognizes:
+    - pattern: '^ge-(?P<p0>\d+)/(?P<p1>\d+)/(?P<p2>\d+)$'
+      render: 'GigabitEthernet{p0}/{p1}/{p2}'
+
+concepts:
+  hostname:
+    kind: scalar
+    match: '^hostname (?P<value>\S+)$'
+    set:
+      hostname: '{value}'
+    render: 'hostname {hostname}'
+
+  vlan:
+    kind: block
+    key: vlan_id
+    block_start:
+      match: '^vlan (?P<vlan_id>\d+)$'
+      set:
+        vlan_id: '{vlan_id:int}'
+    members:
+      - match: '^name (?P<name>\S+)$'
+        set:
+          name: '{name}'
+    render:
+      block_start: 'vlan {vlan_id}'
+      lines:
+        - when: name
+          template: ' name {name}'
+
+  interface:
+    kind: block
+    key: name
+    block_start:
+      match: '^interface (?P<name>\S+)$'
+      set:
+        name: '{name}'
+    members:
+      - match: '^description (?P<value>.+)$'
+        set:
+          description: '{value}'
+      - match: '^switchport mode access$'
+        set:
+          mode: 'access'
+      - match: '^switchport mode trunk$'
+        set:
+          mode: 'trunk'
+      - match: '^switchport access vlan (?P<vlan_id>\d+)$'
+        set:
+          access_vlan: '{vlan_id:int}'
+      - match: '^switchport trunk allowed vlan (?P<vlans>.+)$'
+        set:
+          allowed_vlans: '{vlans:int_csv}'
+    render:
+      block_start: 'interface {name}'
+      lines:
+        - when: description
+          template: ' description {description}'
+        - when: 'mode:access'
+          template: ' switchport mode access'
+        - when: ['mode:access', 'access_vlan']
+          template: ' switchport access vlan {access_vlan}'
+        - when: 'mode:trunk'
+          template: ' switchport mode trunk'
+        - when: ['mode:trunk', 'allowed_vlans']
+          template: ' switchport trunk allowed vlan {allowed_vlans:int_csv}'
+
+# Interactive CLI grammar (runtime pipeline, Phase 5+). Cisco IOS is the
+# vendor a user types commands AGAINST (RuntimeParser is hardcoded to
+# always recognize this grammar - see runtime/runtime_parser.py). The tree
+# below mirrors runtime/grammar/cisco_ios.yaml exactly: mode-keyed command
+# words, each with the shortest valid IOS abbreviation ("minimum") and
+# optional nested "children" for multi-word commands. A leaf's "op" is the
+# vendor-neutral operation id joined against a target vendor's runtime
+# templates (below, for Juniper). "mode_change" replaces the hardcoded
+# if/elif ladder in the legacy RuntimeParser.parse().
+runtime:
+  modes:
+    exec:
+      commands:
+        show:
+          minimum: sho
+          children:
+            interfaces:
+              minimum: int
+              children:
+                status:
+                  minimum: stat
+                  op: show.interfaces.status
+            vlan:
+              minimum: vlan
+              children:
+                brief:
+                  minimum: br
+                  op: show.vlan.brief
+            version:
+              minimum: ver
+              op: show.system.version
+        configure:
+          minimum: conf
+          children:
+            terminal:
+              minimum: t
+              op: configure.terminal
+              mode_change: config
+    config:
+      commands:
+        interface:
+          minimum: int
+          op: interface.enter
+          mode_change: interface
+    interface:
+      commands:
+        description:
+          minimum: desc
+          op: interface.description
+        shutdown:
+          minimum: shu
+          op: interface.shutdown
+        "no":
+          minimum: "no"
+          children:
+            shutdown:
+              minimum: shu
+              op: interface.no_shutdown
+        switchport:
+          minimum: switch
+          children:
+            mode:
+              minimum: mode
+              children:
+                access:
+                  minimum: access
+                  op: interface.switchport.mode.access
+                trunk:
+                  minimum: trunk
+                  op: interface.switchport.mode.trunk
+            access:
+              minimum: access
+              children:
+                vlan:
+                  minimum: vlan
+                  op: interface.switchport.access.vlan
+        exit:
+          minimum: exit
+          op: mode.exit
+          mode_change: config
+        end:
+          minimum: end
+          op: mode.end
+          mode_change: exec

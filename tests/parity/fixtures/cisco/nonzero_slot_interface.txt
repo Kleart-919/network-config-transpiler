@@ -1,0 +1,9 @@
+hostname SLOT-SW1
+
+vlan 10
+ name USERS
+
+interface GigabitEthernet2/0/5
+ description Cross-vendor slot mapping check
+ switchport mode access
+ switchport access vlan 10

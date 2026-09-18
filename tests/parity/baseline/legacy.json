@@ -1,0 +1,304 @@
+{
+  "batch": {
+    "parity-fixtures/cisco/nonzero_slot_interface.txt": {
+      "cisco_render": "hostname SLOT-SW1\n\nvlan 10\n name USERS\n\ninterface GigabitEthernet2/0/5\n description Cross-vendor slot mapping check\n switchport mode access\n switchport access vlan 10\n",
+      "intent": {
+        "hostname": "SLOT-SW1",
+        "interfaces": [
+          {
+            "access_vlan": 10,
+            "allowed_vlans": [],
+            "description": "Cross-vendor slot mapping check",
+            "mode": "access",
+            "name": "GigabitEthernet2/0/5"
+          }
+        ],
+        "vlans": [
+          {
+            "id": 10,
+            "name": "USERS"
+          }
+        ]
+      },
+      "juniper_render": "set system host-name SLOT-SW1\n\nset vlans USERS vlan-id 10\n\nset interfaces ge-0/0/5 description \"Cross-vendor slot mapping check\"\nset interfaces ge-0/0/5 unit 0 family ethernet-switching interface-mode access\nset interfaces ge-0/0/5 unit 0 family ethernet-switching vlan members USERS\n",
+      "source_vendor": "cisco"
+    },
+    "parity-fixtures/juniper/nonzero_slot_interface.txt": {
+      "cisco_render": "hostname SLOT-SW2\n\nvlan 10\n name USERS\n\ninterface GigabitEthernet0/0/7\n description Cross-vendor slot mapping check\n switchport mode access\n switchport access vlan 10\n",
+      "intent": {
+        "hostname": "SLOT-SW2",
+        "interfaces": [
+          {
+            "access_vlan": 10,
+            "allowed_vlans": [],
+            "description": "Cross-vendor slot mapping check",
+            "mode": "access",
+            "name": "ge-3/0/7"
+          }
+        ],
+        "vlans": [
+          {
+            "id": 10,
+            "name": "USERS"
+          }
+        ]
+      },
+      "juniper_render": "set system host-name SLOT-SW2\n\nset vlans USERS vlan-id 10\n\nset interfaces ge-3/0/7 description \"Cross-vendor slot mapping check\"\nset interfaces ge-3/0/7 unit 0 family ethernet-switching interface-mode access\nset interfaces ge-3/0/7 unit 0 family ethernet-switching vlan members USERS\n",
+      "source_vendor": "juniper"
+    },
+    "parity-fixtures/juniper/vlan_members_before_mode.txt": {
+      "cisco_render": "hostname EDGE-SW1\n\nvlan 10\n name USERS\n\ninterface GigabitEthernet0/0/5\n switchport mode access\n",
+      "intent": {
+        "hostname": "EDGE-SW1",
+        "interfaces": [
+          {
+            "access_vlan": null,
+            "allowed_vlans": [],
+            "description": null,
+            "mode": "access",
+            "name": "ge-0/0/5"
+          }
+        ],
+        "vlans": [
+          {
+            "id": 10,
+            "name": "USERS"
+          }
+        ]
+      },
+      "juniper_render": "set system host-name EDGE-SW1\n\nset vlans USERS vlan-id 10\n\nset interfaces ge-0/0/5 unit 0 family ethernet-switching interface-mode access\n",
+      "source_vendor": "juniper"
+    },
+    "sample-configs/cisco/access_port_config.txt": {
+      "cisco_render": "hostname ACCESS-SW1\n\nvlan 30\n name GUESTS\n\ninterface GigabitEthernet1/0/10\n description Guest Access Port\n switchport mode access\n switchport access vlan 30\n",
+      "intent": {
+        "hostname": "ACCESS-SW1",
+        "interfaces": [
+          {
+            "access_vlan": 30,
+            "allowed_vlans": [],
+            "description": "Guest Access Port",
+            "mode": "access",
+            "name": "GigabitEthernet1/0/10"
+          }
+        ],
+        "vlans": [
+          {
+            "id": 30,
+            "name": "GUESTS"
+          }
+        ]
+      },
+      "juniper_render": "set system host-name ACCESS-SW1\n\nset vlans GUESTS vlan-id 30\n\nset interfaces ge-0/0/10 description \"Guest Access Port\"\nset interfaces ge-0/0/10 unit 0 family ethernet-switching interface-mode access\nset interfaces ge-0/0/10 unit 0 family ethernet-switching vlan members GUESTS\n",
+      "source_vendor": "cisco"
+    },
+    "sample-configs/cisco/basic_l2_config.txt": {
+      "cisco_render": "hostname CORE-SW1\n\nvlan 10\n name USERS\nvlan 20\n name SERVERS\n\ninterface GigabitEthernet1/0/1\n description Uplink to Distribution\n switchport mode trunk\n switchport trunk allowed vlan 10,20\n\ninterface GigabitEthernet1/0/2\n description User Access Port\n switchport mode access\n switchport access vlan 10\n",
+      "intent": {
+        "hostname": "CORE-SW1",
+        "interfaces": [
+          {
+            "access_vlan": null,
+            "allowed_vlans": [
+              10,
+              20
+            ],
+            "description": "Uplink to Distribution",
+            "mode": "trunk",
+            "name": "GigabitEthernet1/0/1"
+          },
+          {
+            "access_vlan": 10,
+            "allowed_vlans": [],
+            "description": "User Access Port",
+            "mode": "access",
+            "name": "GigabitEthernet1/0/2"
+          }
+        ],
+        "vlans": [
+          {
+            "id": 10,
+            "name": "USERS"
+          },
+          {
+            "id": 20,
+            "name": "SERVERS"
+          }
+        ]
+      },
+      "juniper_render": "set system host-name CORE-SW1\n\nset vlans USERS vlan-id 10\nset vlans SERVERS vlan-id 20\n\nset interfaces ge-0/0/1 description \"Uplink to Distribution\"\nset interfaces ge-0/0/1 unit 0 family ethernet-switching interface-mode trunk\nset interfaces ge-0/0/1 unit 0 family ethernet-switching vlan members [ USERS SERVERS ]\n\nset interfaces ge-0/0/2 description \"User Access Port\"\nset interfaces ge-0/0/2 unit 0 family ethernet-switching interface-mode access\nset interfaces ge-0/0/2 unit 0 family ethernet-switching vlan members USERS\n",
+      "source_vendor": "cisco"
+    },
+    "sample-configs/cisco/trunk_config.txt": {
+      "cisco_render": "hostname DIST-SW1\n\nvlan 10\n name USERS\nvlan 20\n name SERVERS\nvlan 30\n name GUESTS\n\ninterface GigabitEthernet1/0/48\n description Uplink Trunk\n switchport mode trunk\n switchport trunk allowed vlan 10,20,30\n",
+      "intent": {
+        "hostname": "DIST-SW1",
+        "interfaces": [
+          {
+            "access_vlan": null,
+            "allowed_vlans": [
+              10,
+              20,
+              30
+            ],
+            "description": "Uplink Trunk",
+            "mode": "trunk",
+            "name": "GigabitEthernet1/0/48"
+          }
+        ],
+        "vlans": [
+          {
+            "id": 10,
+            "name": "USERS"
+          },
+          {
+            "id": 20,
+            "name": "SERVERS"
+          },
+          {
+            "id": 30,
+            "name": "GUESTS"
+          }
+        ]
+      },
+      "juniper_render": "set system host-name DIST-SW1\n\nset vlans USERS vlan-id 10\nset vlans SERVERS vlan-id 20\nset vlans GUESTS vlan-id 30\n\nset interfaces ge-0/0/48 description \"Uplink Trunk\"\nset interfaces ge-0/0/48 unit 0 family ethernet-switching interface-mode trunk\nset interfaces ge-0/0/48 unit 0 family ethernet-switching vlan members [ USERS SERVERS GUESTS ]\n",
+      "source_vendor": "cisco"
+    },
+    "sample-configs/cisco/vlan_only_config.txt": {
+      "cisco_render": "hostname VLAN-SW1\n\nvlan 100\n name MANAGEMENT\nvlan 200\n name VOICE\n",
+      "intent": {
+        "hostname": "VLAN-SW1",
+        "interfaces": [],
+        "vlans": [
+          {
+            "id": 100,
+            "name": "MANAGEMENT"
+          },
+          {
+            "id": 200,
+            "name": "VOICE"
+          }
+        ]
+      },
+      "juniper_render": "set system host-name VLAN-SW1\n\nset vlans MANAGEMENT vlan-id 100\nset vlans VOICE vlan-id 200\n",
+      "source_vendor": "cisco"
+    },
+    "sample-configs/juniper/basic_l2_config.txt": {
+      "cisco_render": "hostname CORE-SW1\n\nvlan 10\n name USERS\nvlan 20\n name SERVERS\n\ninterface GigabitEthernet0/0/1\n description Uplink to Distribution\n switchport mode trunk\n switchport trunk allowed vlan 10,20\n\ninterface GigabitEthernet0/0/2\n description User Access Port\n switchport mode access\n switchport access vlan 10\n",
+      "intent": {
+        "hostname": "CORE-SW1",
+        "interfaces": [
+          {
+            "access_vlan": null,
+            "allowed_vlans": [
+              10,
+              20
+            ],
+            "description": "Uplink to Distribution",
+            "mode": "trunk",
+            "name": "ge-0/0/1"
+          },
+          {
+            "access_vlan": 10,
+            "allowed_vlans": [],
+            "description": "User Access Port",
+            "mode": "access",
+            "name": "ge-0/0/2"
+          }
+        ],
+        "vlans": [
+          {
+            "id": 10,
+            "name": "USERS"
+          },
+          {
+            "id": 20,
+            "name": "SERVERS"
+          }
+        ]
+      },
+      "juniper_render": "set system host-name CORE-SW1\n\nset vlans USERS vlan-id 10\nset vlans SERVERS vlan-id 20\n\nset interfaces ge-0/0/1 description \"Uplink to Distribution\"\nset interfaces ge-0/0/1 unit 0 family ethernet-switching interface-mode trunk\nset interfaces ge-0/0/1 unit 0 family ethernet-switching vlan members [ USERS SERVERS ]\n\nset interfaces ge-0/0/2 description \"User Access Port\"\nset interfaces ge-0/0/2 unit 0 family ethernet-switching interface-mode access\nset interfaces ge-0/0/2 unit 0 family ethernet-switching vlan members USERS\n",
+      "source_vendor": "juniper"
+    }
+  },
+  "runtime": {
+    "translate_steps": [
+      {
+        "input": "configure terminal",
+        "mode_after": "config",
+        "translated": "configure"
+      },
+      {
+        "input": "interface GigabitEthernet0/0/1",
+        "mode_after": "interface",
+        "translated": "edit interfaces ge-0/0/1"
+      },
+      {
+        "input": "description Uplink to Distribution",
+        "mode_after": "interface",
+        "translated": "set description \"Uplink to Distribution\""
+      },
+      {
+        "input": "switchport mode trunk",
+        "mode_after": "interface",
+        "translated": "set unit 0 family ethernet-switching interface-mode trunk"
+      },
+      {
+        "input": "shutdown",
+        "mode_after": "interface",
+        "translated": "set disable"
+      },
+      {
+        "input": "no shutdown",
+        "mode_after": "interface",
+        "translated": "delete disable"
+      },
+      {
+        "input": "exit",
+        "mode_after": "config",
+        "translated": "exit"
+      },
+      {
+        "input": "interface GigabitEthernet0/0/2",
+        "mode_after": "interface",
+        "translated": "edit interfaces ge-0/0/2"
+      },
+      {
+        "input": "switchport mode access",
+        "mode_after": "interface",
+        "translated": "set unit 0 family ethernet-switching interface-mode access"
+      },
+      {
+        "input": "switchport access vlan 10",
+        "mode_after": "interface",
+        "translated": "delete unit 0 family ethernet-switching vlan\nset unit 0 family ethernet-switching vlan members 10"
+      },
+      {
+        "input": "end",
+        "mode_after": "exec",
+        "translated": "top"
+      },
+      {
+        "input": "show interfaces status",
+        "mode_after": "exec",
+        "translated": "show interfaces terse"
+      },
+      {
+        "input": "show vlan brief",
+        "mode_after": "exec",
+        "translated": "show vlans"
+      },
+      {
+        "input": "show version",
+        "mode_after": "exec",
+        "translated": "show version"
+      },
+      {
+        "input": "write memory",
+        "mode_after": "exec",
+        "translated": "write memory"
+      }
+    ],
+    "virtualize_output": "GigabitEthernet0/0/0        up      up\nGigabitEthernet0/0/1        up      up\nGigabitEthernet0/0/2        up      down\nGigabitEthernet0/0/3        up      down"
+  }
+}

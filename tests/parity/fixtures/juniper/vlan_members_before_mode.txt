@@ -1,0 +1,4 @@
+set system host-name EDGE-SW1
+set vlans USERS vlan-id 10
+set interfaces ge-0/0/5 unit 0 family ethernet-switching vlan members USERS
+set interfaces ge-0/0/5 unit 0 family ethernet-switching interface-mode access

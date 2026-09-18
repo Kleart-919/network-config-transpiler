@@ -1,0 +1,157 @@
+# Juniper Junos vendor schema.
+#
+# tokenizer.style: token - every line is required to start with "set ",
+# then shlex-tokenized (handles quoting and "[ ]" bracket-list tokens).
+# Concepts match against the token list positionally or by searching for an
+# anchor token, mirroring JuniperParser exactly (parsers/juniper_parser.py).
+#
+# The interface concept's "vlan members" resolution is genuinely
+# order-dependent in the current parser: membership is only resolved if
+# "interface-mode" was already seen for that interface (resolve.depends_on:
+# mode, on_missing_dependency: skip below). This is a real, if fragile,
+# quirk of the current parser (not just a keyword table) and is preserved
+# here deliberately for parity - see the project plan's "known-bug
+# handling" note. Do not fix here.
+#
+# naming_convention.recognizes: Phase 1-6 deliberately reproduced
+# JuniperGenerator.map_interface_name's bug (it kept only the middle and
+# last slash-separated segment of a Cisco "GigabitEthernetX/Y/Z" name,
+# hardcoding the module segment to 0 and silently discarding X) for
+# migration parity. As of Phase 7 that bug is fixed here: all three
+# segments are preserved (GigabitEthernetX/Y/Z -> ge-X/Y/Z).
+
+vendor:
+  id: juniper_junos
+  display_name: Juniper Junos
+
+tokenizer:
+  style: token
+
+naming_convention:
+  recognizes:
+    - pattern: '^GigabitEthernet(?P<p0>\d+)/(?P<p1>\d+)/(?P<p2>\d+)$'
+      render: 'ge-{p0}/{p1}/{p2}'
+
+concepts:
+  hostname:
+    kind: scalar
+    match: ['set', 'system', 'host-name', '<value>']
+    set:
+      hostname: '{value}'
+    render: 'set system host-name {hostname}'
+
+  vlan:
+    kind: block
+    key: vlan_id
+    match: ['set', 'vlans', '<name>', 'vlan-id', '<vlan_id:int>']
+    set:
+      vlan_id: '{vlan_id:int}'
+      name: '{name}'
+    register_lookup:
+      table: vlan_ids_by_name
+      key: name
+      value: vlan_id
+    render:
+      defaults:
+        name: 'VLAN_{vlan_id}'
+      lines:
+        - when: always
+          template: 'set vlans {name} vlan-id {vlan_id}'
+
+  interface:
+    kind: block
+    key: name
+    match_prefix: ['set', 'interfaces', '<name>']
+    dedup: true
+    members:
+      - kind: positional
+        tokens: ['description', '<value>']
+        set:
+          description: '{value}'
+      - kind: contains_single
+        anchor: 'interface-mode'
+        set:
+          mode: '{captured}'
+      - kind: contains_rest
+        anchor: 'members'
+        require_present: ['vlan']
+        strip_tokens: ['[', ']']
+        resolve:
+          depends_on: mode
+          on_missing_dependency: skip
+          branches:
+            - when: 'mode:access'
+              set:
+                access_vlan: 'lookup_first(captured)'
+            - when: 'mode:trunk'
+              set:
+                allowed_vlans: 'lookup_each(captured)'
+    render:
+      lines:
+        - when: description
+          template: 'set interfaces {name} description "{description}"'
+        - when: 'mode:access'
+          template: 'set interfaces {name} unit 0 family ethernet-switching interface-mode access'
+        - when: ['mode:access', 'access_vlan']
+          template: 'set interfaces {name} unit 0 family ethernet-switching vlan members {access_vlan:vlan_name}'
+        - when: 'mode:trunk'
+          template: 'set interfaces {name} unit 0 family ethernet-switching interface-mode trunk'
+        - when: ['mode:trunk', 'allowed_vlans']
+          template: 'set interfaces {name} unit 0 family ethernet-switching vlan members [ {allowed_vlans:vlan_names_space} ]'
+
+# Interactive CLI generation (runtime pipeline, Phase 5+). Juniper Junos is
+# the vendor commands are GENERATED for, keyed by the same vendor-neutral
+# operation ids Cisco's mode tree (above) produces. This is the parity
+# target for Phase 5/6: it transcribes runtime/runtime_templates.py's LIVE
+# RUNTIME_TEMPLATES["Juniper Junos"] dict exactly - not
+# runtime/grammar/juniper_junos.yaml, which is dead code that has already
+# drifted from it (interface.shutdown and interface.switchport.access.vlan
+# differ between the two; the live dict is authoritative). "arguments"
+# replaces the hardcoded per-placeholder-name binding logic in the legacy
+# RuntimeGenerator.generate() (values["interface"] = ...,
+# values["value"] = " ".join(...), etc). "resolve: device_inventory_alias"
+# replicates resolve_interface()'s live-DeviceInventory alias lookup with
+# passthrough fallback - it is deliberately NOT the static naming_convention
+# mapper above; consolidating the two is Phase 7, not this step.
+runtime:
+  templates:
+    configure.terminal:
+      template: 'configure'
+      mode_change: config
+    show.system.version:
+      template: 'show version'
+    show.interfaces.status:
+      template: 'show interfaces terse'
+    show.vlan.brief:
+      template: 'show vlans'
+    interface.enter:
+      template: 'edit interfaces {interface}'
+      mode_change: interface
+      arguments:
+        interface:
+          source: arg0
+          resolve: device_inventory_alias
+    interface.description:
+      template: 'set description "{value}"'
+      arguments:
+        value:
+          source: all_args
+    interface.shutdown:
+      template: 'set disable'
+    interface.no_shutdown:
+      template: 'delete disable'
+    interface.switchport.mode.access:
+      template: 'set unit 0 family ethernet-switching interface-mode access'
+    interface.switchport.mode.trunk:
+      template: 'set unit 0 family ethernet-switching interface-mode trunk'
+    interface.switchport.access.vlan:
+      template: "delete unit 0 family ethernet-switching vlan\nset unit 0 family ethernet-switching vlan members {vlan}"
+      arguments:
+        vlan:
+          source: arg0
+    mode.exit:
+      template: 'exit'
+      mode_change: config
+    mode.end:
+      template: 'top'
+      mode_change: exec

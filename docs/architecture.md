@@ -731,6 +731,8 @@ Instead, every plugin communicates only through the Vendor-Neutral Intent Model.
 
 This architecture significantly reduces coupling between vendor implementations while simplifying future expansion.
 
+**Implementation note:** the Configuration Parser and Configuration Generator are implemented as one shared, schema-driven engine (`engine/generic_parser.py`, `engine/generic_generator.py`) rather than hand-written per-vendor code. Each vendor's syntax, quirks, and interface-naming convention are declared as data in `schema/vendors/<vendor>.yaml`; the same schema file also drives the interactive runtime CLI translator (`engine/generic_runtime_parser.py`, `engine/generic_runtime_generator.py`), which was originally a second, independent implementation of vendor knowledge before this convergence. This applies within the current Intent Model's scope (hostname, VLANs, interface mode/description/VLANs); extending to new networking concepts (routing, ACLs, etc.) still requires extending the Intent Model itself, per §19.
+
 ---
 
 # 15. Vendor Integration Workflow
@@ -832,6 +834,8 @@ Vendor Plugin
 This approach shifts vendor integration from software development towards validation and verification.
 
 The objective is to reduce manual engineering effort while maintaining correctness.
+
+**Implementation note:** a deliberately narrower, more conservative version of this workflow exists: `tools/schema_drafter.py`, an offline, human-triggered authoring tool. Given vendor documentation excerpts and a target concept, it drafts a `schema/vendors/*.yaml` fragment (not generated *code*) and self-validates it — structurally against `SchemaLoader`, and behaviorally by round-tripping a supplied sample config through the real generic engine with the draft merged in memory — before a human reviews, edits, and commits it. It never writes directly to the real schema files, and nothing in the batch or runtime pipeline ever calls an LLM or fetches anything live at execution time: both pipelines only ever run against committed, human-reviewed schema data, identically whether a draft originated from this tool or was hand-written. Full "Parser Generation"/"Generator Generation" from documentation, as originally envisioned above, remains unbuilt — the tool drafts data for the existing generic engine to interpret, not new parsing/generation code.
 
 ---
 

@@ -8,25 +8,18 @@ Each vendor registers the components required by ConfigBridge.
 Future vendor plugins simply register themselves here.
 """
 
-from dataclasses import dataclass
-from typing import Any
 from configbridge.plugins.vendor_manifest import VendorManifest
+from configbridge.schema.loader import SchemaLoader
+from configbridge.engine.generic_parser import GenericConfigParser
+from configbridge.engine.generic_generator import GenericConfigGenerator
 
-@dataclass
-class VendorManifest:
-    """
-    Represents one supported vendor.
-    """
-
-    name: str
-
-    discovery_profile: Any = None
-    discovery_parser: Any = None
-
-    configuration_parser: Any = None
-    configuration_generator: Any = None
-
-    metadata: dict | None = None
+# vendor schema id -> display name, as registered elsewhere in the app
+# (VendorManifest.name / VendorRegistry keys, e.g. discovery profiles,
+# DeviceInventory.vendor).
+_SCHEMA_VENDORS = {
+    "cisco_ios": "Cisco IOS",
+    "juniper_junos": "Juniper Junos",
+}
 
 
 class VendorRegistry:
@@ -62,3 +55,35 @@ class VendorRegistry:
         """
 
         return sorted(self._vendors.keys())
+
+
+def build_default_registry() -> VendorRegistry:
+    """
+    Build the standard VendorRegistry with every vendor's
+    configuration_parser/configuration_generator wired to the schema-driven
+    generic engine (schema/vendors/*.yaml via SchemaLoader) instead of the
+    legacy hand-written per-vendor parser/generator classes.
+
+    discovery_profile/discovery_parser are left unset (None) here -
+    discovery is a separate subsystem (discovery/) with its own vendor
+    wiring, out of scope for this schema migration. Callers that need
+    discovery too should set those fields on the returned manifests.
+    """
+
+    loader = SchemaLoader()
+    registry = VendorRegistry()
+
+    for vendor_id, display_name in _SCHEMA_VENDORS.items():
+        schema = loader.load(vendor_id)
+
+        registry.register(
+            VendorManifest(
+                name=display_name,
+                discovery_profile=None,
+                discovery_parser=None,
+                configuration_parser=GenericConfigParser(schema),
+                configuration_generator=GenericConfigGenerator(schema),
+            )
+        )
+
+    return registry
