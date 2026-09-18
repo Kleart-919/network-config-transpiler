@@ -65,14 +65,31 @@ Instead, it aims to improve accessibility, reduce migration effort, reduce opera
 
 ## Configuration Transpilation
 
+ConfigBridge uses one shared, schema-driven configuration engine rather than separate hand-written parser and generator implementations for each vendor.
+
+The batch configuration pipeline is driven by:
+
+* `engine/generic_parser.py`
+* `engine/generic_generator.py`
+* `schema/vendors/cisco_ios.yaml`
+* `schema/vendors/juniper_junos.yaml`
+
+The vendor YAML schemas contain the vendor-specific syntax knowledge consumed by the generic engine. They are the source of truth for the currently supported vendor syntax.
+
+The interactive runtime CLI translator uses the same schema data through:
+
+* `engine/generic_runtime_parser.py`
+* `engine/generic_runtime_generator.py`
+
 Currently implemented:
 
-* Cisco IOS parser
-* Juniper Junos parser
-* Cisco IOS generator
-* Juniper Junos generator
+* Cisco IOS configuration parsing
+* Juniper Junos configuration parsing
+* Cisco IOS configuration generation
+* Juniper Junos configuration generation
 * Vendor-neutral Intent Model
 * Bidirectional transpilation pipeline
+* Schema-driven batch and interactive runtime translation
 
 ---
 
@@ -91,34 +108,45 @@ Relationship Engine
         │
 Vendor-Neutral Intent Model
         │
-Configuration Generators
+Schema-Driven Configuration Engine
+        │
+Configuration Output
 ```
+
+Vendor-specific configuration knowledge is kept in the vendor schema layer rather than duplicated across Python parser and generator implementations.
 
 ---
 
 # Current Vendor Support
 
-### Configuration Parsing
+## Configuration Parsing
 
 * Cisco IOS
 * Juniper Junos
 
-### Configuration Generation
+## Configuration Generation
 
 * Cisco IOS
 * Juniper Junos
 
-### Session Management
+Both vendors currently use the same generic schema-driven parsing and generation engine.
+
+The corresponding syntax definitions are maintained in:
+
+```text
+src/configbridge/schema/vendors/
+├── cisco_ios.yaml
+└── juniper_junos.yaml
+```
+
+These schema files are the source of truth for vendor-specific syntax used by both the batch configuration pipeline and the interactive runtime CLI translator.
+
+## Session Management
 
 * SSH
 * Telnet
 
-Future versions will support:
-
-* Cisco Nexus
-* Aruba
-* HP
-* Arista EOS
+Future versions will support additional network operating systems and networking concepts as the Intent Model and vendor schemas are extended.
 
 ---
 
@@ -128,15 +156,16 @@ Future versions will support:
 * Configuration comparison
 * Deployment framework
 * Rollback support
-* Vendor plugin architecture
-* Automated vendor onboarding
 * Additional vendor support
+* Automated vendor onboarding
 * Layer 3 networking
 * ACLs
 * NTP
 * SNMP
 * QoS
 * VRFs
+
+The Relationship Engine is already implemented as a v1 alias-based implementation. Future work will extend its relationship signals beyond aliases to include richer discovery evidence such as interface descriptions, VLAN information, LLDP/CDP and other operational characteristics.
 
 ---
 
@@ -145,22 +174,46 @@ Future versions will support:
 ```text
 src/
 │
-├── connections/
-├── gui/
-├── models/
-├── parsers/
-├── renderers/
-├── plugins/
-├── safety/
-└── transpiler/ (planned)
+└── configbridge/
+    │
+    ├── connections/       # SSH/Telnet session and transport handling
+    ├── discovery/         # Device discovery and discovery parsing
+    ├── engine/            # Shared schema-driven parsing/generation engines
+    ├── gui/               # PySide6 desktop interface
+    ├── models/            # Intent and device inventory models
+    ├── plugins/           # Vendor registry and plugin integration
+    ├── relationship/      # Interface/device relationship resolution
+    ├── runtime/           # Interactive runtime CLI translation
+    ├── safety/            # Safety-related placeholders
+    ├── schema/            # Schema models, loading and vendor syntax definitions
+    └── transpiler/        # Transpilation orchestration
+        │
+        └── ...
+           
+
+schema/vendors/
+├── cisco_ios.yaml         # Cisco IOS syntax source of truth
+└── juniper_junos.yaml     # Juniper Junos syntax source of truth
+
+tools/
+└── schema_drafter.py      # Offline schema-authoring and validation tool
+
+tests/
+└── parity/
+    └── run_parity.py      # Schema/engine regression gate
 
 docs/
-│
 ├── proposal.md
 ├── design-document.md
 ├── architecture.md
 └── project-phases.md
 ```
+
+The vendor schema files under `schema/vendors/` are the source of truth for supported vendor syntax. The generic engines interpret these schemas rather than relying on separate hand-written vendor parser/generator modules.
+
+`tools/schema_drafter.py` is an offline authoring and validation utility for drafting schema fragments. It does not generate parser or generator code and is not part of the runtime application pipeline.
+
+`tests/parity/run_parity.py` provides the regression gate for schema and engine changes. It compares current batch and runtime behaviour against the committed current baseline and must report zero differences before a schema or engine change is considered complete.
 
 ---
 
@@ -186,15 +239,45 @@ Implemented:
 * Discovery architecture
 * Device inventory
 * Vendor-neutral Intent Model
-* Cisco and Juniper parsers
-* Cisco and Juniper generators
+* Schema-driven configuration parsing and generation
+* Cisco IOS support
+* Juniper Junos support
 * Bidirectional transpilation
+* Interactive runtime CLI translation
+* Transpilation orchestration
+* Relationship Engine v1
 
-Currently under development:
+The transpilation orchestration is implemented in:
 
-* Relationship Engine
-* Discovery integration
-* Transpilation framework
+```text
+src/configbridge/transpiler/transpilation_engine.py
+```
+
+and is wired through the default vendor registry in:
+
+```text
+src/configbridge/plugins/vendor_registry.py
+```
+
+using `build_default_registry()`.
+
+The Relationship Engine is also a real v1 implementation. Its current relationship matching is alias-based. Richer evidence such as descriptions, VLANs, LLDP/CDP, speed and other operational signals remains future work.
+
+The safety and comparison areas remain placeholders/stubs rather than completed functionality.
+
+Before schema or engine changes are considered complete, the parity regression gate must report zero differences:
+
+```text
+tests/parity/run_parity.py
+```
+
+Schema authoring can be assisted offline using:
+
+```text
+tools/schema_drafter.py
+```
+
+which drafts schema data for human review and validation against the real schema-driven engine.
 
 ---
 
@@ -202,6 +285,6 @@ Currently under development:
 
 The long-term objective of ConfigBridge is to become a discovery-assisted, relationship-aware, intent-driven platform for heterogeneous network environments.
 
-Future versions aim to reduce the engineering effort required to support additional vendors by combining device discovery, vendor metadata and automated onboarding while preserving deterministic validation before deployment.
+Future versions aim to reduce the engineering effort required to support additional vendors by combining device discovery, vendor metadata and automated or semi-automated onboarding while preserving deterministic validation before deployment.
 
 The architecture is intentionally designed to evolve without requiring fundamental redesign as additional networking technologies and vendors are incorporated.
